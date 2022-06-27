@@ -32,6 +32,7 @@ import os
 SWERV_TOP = "TOP.tb_top.rvtop.swerv."
 SWERV_DEC_DECODE = SWERV_TOP + "dec.decode."
 SWERV_DEC_IB     = SWERV_TOP + "dec.instbuff."
+SWERV_GPR        = SWERV_TOP + "dec.arf.gpr_banks[0]."
 SWERV_EXU        = SWERV_TOP + "exu."
 
 # ===[ GUI Class ]=========================================
@@ -55,6 +56,8 @@ class SweRVisual(QMainWindow):
 
     # define brushes etc.
     def _setupDrawing(self):
+        self.brush_neutral = QBrush()
+
         self.brush_stage_valid = QBrush(QColor(0x71, 0xff, 0x7d))
         self.brush_stage_invalid = QBrush(QColor(0xff, 0x5b, 0x62))
 
@@ -68,6 +71,9 @@ class SweRVisual(QMainWindow):
         self.pen_line_rs2 = QPen(Qt.magenta, 3, Qt.DotLine)
         self.pen_arrow_rs2 = QPen(Qt.magenta, 1, Qt.SolidLine)
         self.brush_arrow_head_rs2 = QBrush(Qt.magenta)
+        
+        self.pen_line_commit = QPen(QColor(0x71, 0xff, 0x7d), 2, Qt.SolidLine)
+        self.brush_line_commit = QBrush(QColor(0x71, 0xff, 0x7d))
 
     # center object within its parents bounding rect
     def _centerObjectWithinParent(self, obj):
@@ -1051,6 +1057,12 @@ class SweRVisual(QMainWindow):
         self._centerObjectWithinParent(QGraphicsSimpleTextItem("IB2", parent=self.IB2))
         self._centerObjectWithinParent(QGraphicsSimpleTextItem("IB3", parent=self.IB3))
 
+        # stalling lines
+        self.stall_i0 = self.scene.addLine(270, 0, 270, 120, QPen(Qt.red, 3, Qt.DotLine))
+        self.stall_i1 = self.scene.addLine(270, 120, 270, 240, QPen(Qt.red, 3, Qt.DotLine))
+        self.stall_i0.hide()
+        self.stall_i1.hide()
+
         # pipeline stages
         self.exe_bounding_rect = self.scene.addRect(0, 0, 5*(width+spacing), 2*(width+spacing))
 
@@ -1103,17 +1115,30 @@ class SweRVisual(QMainWindow):
         self.I1_4_class_text = QGraphicsSimpleTextItem("I1 class", parent=self.I1_4_class)
         self.I1_WB_class_text = QGraphicsSimpleTextItem("I1 class", parent=self.I1_WB_class)
 
-        self.I0_1_regs_text = QGraphicsSimpleTextItem("RS1: x00\nRS2: x00\nRD:  x00", parent=self.I0_1_regs)
-        self.I0_2_regs_text = QGraphicsSimpleTextItem("RS1: x00\nRS2: x00\nRD:  x00", parent=self.I0_2_regs)
-        self.I0_3_regs_text = QGraphicsSimpleTextItem("RS1: x00\nRS2: x00\nRD:  x00", parent=self.I0_3_regs)
-        self.I0_4_regs_text = QGraphicsSimpleTextItem("RS1: x00\nRS2: x00\nRD:  x00", parent=self.I0_4_regs)
-        self.I0_WB_regs_text = QGraphicsSimpleTextItem("RS1: x00\nRS2: x00\nRD:  x00", parent=self.I0_WB_regs)
+        self.I0_1_regs_text = QGraphicsSimpleTextItem("RD:  x00", parent=self.I0_1_regs)
+        self.I0_2_regs_text = QGraphicsSimpleTextItem("RD:  x00", parent=self.I0_2_regs)
+        self.I0_3_regs_text = QGraphicsSimpleTextItem("RD:  x00", parent=self.I0_3_regs)
+        self.I0_4_regs_text = QGraphicsSimpleTextItem("RD:  x00", parent=self.I0_4_regs)
+        self.I0_WB_regs_text = QGraphicsSimpleTextItem("RD:  x00", parent=self.I0_WB_regs)
 
         # regfile
         regwidth = 110
         regnamewidth = 30
         regheight = 25
         self.regfile = self.scene.addRect(0, 0, 560, 200)
+
+        # nonblocking load commit
+        self.nonblock_load_commit = QGraphicsItemGroup(parent=self.regfile)
+        nbl_commit_rect = QGraphicsRectItem(0, 0, regwidth, regheight)
+        nbl_commit_rect.setBrush(self.brush_stage_valid)
+        self.nonblock_load_commit.addToGroup(nbl_commit_rect)
+        arrow = ArrowItem(parent=self.nonblock_load_commit, headLen=20, tailLen=10, angle=0)
+        arrow.setPos(-30, regheight/2)
+        arrow.setPen(self.pen_line_commit)
+        arrow.setBrush(self.brush_line_commit)
+        self.nonblock_load_commit.addToGroup(arrow)
+        self.nonblock_load_commit_text = QGraphicsSimpleTextItem("NBL Commit", parent=nbl_commit_rect)
+        self._centerObjectWithinParent(self.nonblock_load_commit_text)
 
         self.x0_name  = QGraphicsRectItem(0, 0, regnamewidth, regheight, parent=self.regfile)
         self.x1_name  = QGraphicsRectItem(0, 0, regnamewidth, regheight, parent=self.regfile)
@@ -1436,11 +1461,13 @@ class SweRVisual(QMainWindow):
         self._centerObjectWithinParent(self.x29_content)
         self._centerObjectWithinParent(self.x30_content)
         self._centerObjectWithinParent(self.x31_content)
+
+        self.nonblock_load_commit.setPos(self.regfile.boundingRect().width() + 30, self.regfile.boundingRect().height()/2 - regheight/2)
         
         # positioning of modules
         self.IB_bounding_rect.setPos(0, (width+spacing)/2)
         self.exe_bounding_rect.setPos(2.5*(width + spacing), 0) 
-        self.regfile.setPos(0, 300)
+        self.regfile.setPos(0, 350)
 
     def _getStageClassText(self, valid, alu, load, mul, sec):
         text = "Other"
@@ -1564,18 +1591,24 @@ class SweRVisual(QMainWindow):
         self.I1_4.setBrush(self.brush_stage_valid) if (int(values["e4d.i1valid"])) else self.I1_4.setBrush(self.brush_stage_invalid)
         self.I1_WB.setBrush(self.brush_stage_valid) if (int(values["wbd.i1valid"])) else self.I1_WB.setBrush(self.brush_stage_invalid)
 
+        # stalling lines
+        self.stall_i0.hide()
+        self.stall_i1.hide()
+        if (int(values["dec_i0_decode_d"]) == 0): self.stall_i0.show()
+        if (int(values["dec_i1_decode_d"]) == 0): self.stall_i1.show()
+
         # color E1-E3 in a light blue if they are frozen
         if (int(values["flush_final_e3"])):
             self.freezable_stages.setBrush(self.brush_flush)
         elif (int(values["freeze"])):
             self.freezable_stages.setBrush(self.brush_freeze)
         else:
-            self.freezable_stages.setBrush(QBrush())
+            self.freezable_stages.setBrush(self.brush_neutral)
 
         if (int(values["flush_lower_wb"])):
             self.flushable_stages.setBrush(self.brush_flush)
         else:
-            self.flushable_stages.setBrush(QBrush())
+            self.flushable_stages.setBrush(self.brush_neutral)
 
         # set instruction and PC in IB
         self.IB0_PC_text.setText("PC: " + "{:08X}".format(int(values["dec_i0_pc_d"], 2)))
@@ -1600,16 +1633,165 @@ class SweRVisual(QMainWindow):
         self.I1_4_class_text.setText(self._getStageClassText(int(values["e4d.i1valid"]), int(values["i1_e4c.alu"]), int(values["i1_e4c.load"]), int(values["i1_e4c.mul"]), int(values["i1_e4c.sec"])))
         self.I1_WB_class_text.setText(self._getStageClassText(int(values["wbd.i1valid"]), int(values["i1_wbc.alu"]), int(values["i1_wbc.load"]), int(values["i1_wbc.mul"]), int(values["i1_wbc.sec"])))
 
+        self.I0_1_regs_text.setText("RD: x{}".format(int(values["e1_i0_rd"], 2)))
+        self.I0_2_regs_text.setText("RD: x{}".format(int(values["e2_i0_rd"], 2)))
+        self.I0_3_regs_text.setText("RD: x{}".format(int(values["e3_i0_rd"], 2)))
+        self.I0_4_regs_text.setText("RD: x{}".format(int(values["e4_i0_rd"], 2)))
+        self.I0_WB_regs_text.setText("RD: x{}".format(int(values["wb_i0_rd"], 2)))
+       
+        #self.I1_1_regs_text.setText("x{}".format(int(values["e1d_i0_rd"])))
+        #self.I1_2_regs_text.setText("x{}".format(int(values["e2d_i0_rd"])))
+        #self.I1_3_regs_text.setText("x{}".format(int(values["e3d_i0_rd"])))
+        #self.I1_4_regs_text.setText("x{}".format(int(values["e4d_i0_rd"])))
+        #self.I1_WB_regs_text.setText("x{}".format(int(values["wbd_i0_rd"])))
+
+        self.nonblock_load_commit.hide()
+        if (int(values["nonblock_load_wen"])): self.nonblock_load_commit.show()
+
         self._hideAllArrows()
         if (int(values["dec_i0_decode_d"])): self._toggleArrowVisibilityI0_RS1(int(values["i0_rs1bypass"], 2))
         if (int(values["dec_i0_decode_d"])): self._toggleArrowVisibilityI0_RS2(int(values["i0_rs2bypass"], 2))
         if (int(values["dec_i1_decode_d"])): self._toggleArrowVisibilityI1_RS1(int(values["i1_rs1bypass"], 2))
         if (int(values["dec_i1_decode_d"])): self._toggleArrowVisibilityI1_RS2(int(values["i1_rs2bypass"], 2))
 
-        self.bypassdebugI0RS1.setText(values["i0_rs1bypass"])
-        self.bypassdebugI0RS2.setText(values["i0_rs2bypass"])
-        self.bypassdebugI1RS1.setText(values["i1_rs1bypass"])
-        self.bypassdebugI1RS2.setText(values["i1_rs2bypass"])
+        # GPR values
+        self.x1_content.setText("0x{:08X}".format(int(values["x1"], 2)))
+        self.x2_content.setText("0x{:08X}".format(int(values["x2"], 2)))
+        self.x3_content.setText("0x{:08X}".format(int(values["x3"], 2)))
+        self.x4_content.setText("0x{:08X}".format(int(values["x4"], 2)))
+        self.x5_content.setText("0x{:08X}".format(int(values["x5"], 2)))
+        self.x6_content.setText("0x{:08X}".format(int(values["x6"], 2)))
+        self.x7_content.setText("0x{:08X}".format(int(values["x7"], 2)))
+        self.x8_content.setText("0x{:08X}".format(int(values["x8"], 2)))
+        self.x9_content.setText("0x{:08X}".format(int(values["x9"], 2)))
+        self.x10_content.setText("0x{:08X}".format(int(values["x10"], 2)))
+        self.x11_content.setText("0x{:08X}".format(int(values["x11"], 2)))
+        self.x12_content.setText("0x{:08X}".format(int(values["x12"], 2)))
+        self.x13_content.setText("0x{:08X}".format(int(values["x13"], 2)))
+        self.x14_content.setText("0x{:08X}".format(int(values["x14"], 2)))
+        self.x15_content.setText("0x{:08X}".format(int(values["x15"], 2)))
+        self.x16_content.setText("0x{:08X}".format(int(values["x16"], 2)))
+        self.x17_content.setText("0x{:08X}".format(int(values["x17"], 2)))
+        self.x18_content.setText("0x{:08X}".format(int(values["x18"], 2)))
+        self.x19_content.setText("0x{:08X}".format(int(values["x19"], 2)))
+        self.x20_content.setText("0x{:08X}".format(int(values["x20"], 2)))
+        self.x21_content.setText("0x{:08X}".format(int(values["x21"], 2)))
+        self.x22_content.setText("0x{:08X}".format(int(values["x22"], 2)))
+        self.x23_content.setText("0x{:08X}".format(int(values["x23"], 2)))
+        self.x24_content.setText("0x{:08X}".format(int(values["x24"], 2)))
+        self.x25_content.setText("0x{:08X}".format(int(values["x25"], 2)))
+        self.x26_content.setText("0x{:08X}".format(int(values["x26"], 2)))
+        self.x27_content.setText("0x{:08X}".format(int(values["x27"], 2)))
+        self.x28_content.setText("0x{:08X}".format(int(values["x28"], 2)))
+        self.x29_content.setText("0x{:08X}".format(int(values["x29"], 2)))
+        self.x30_content.setText("0x{:08X}".format(int(values["x30"], 2)))
+        self.x31_content.setText("0x{:08X}".format(int(values["x31"], 2)))
+
+        # reset all reg brushes
+        self.x0.setBrush(self.brush_neutral)
+        self.x1.setBrush(self.brush_neutral)
+        self.x2.setBrush(self.brush_neutral)
+        self.x3.setBrush(self.brush_neutral)
+        self.x4.setBrush(self.brush_neutral)
+        self.x5.setBrush(self.brush_neutral)
+        self.x6.setBrush(self.brush_neutral)
+        self.x7.setBrush(self.brush_neutral)
+        self.x8.setBrush(self.brush_neutral)
+        self.x9.setBrush(self.brush_neutral)
+        self.x10.setBrush(self.brush_neutral)
+        self.x11.setBrush(self.brush_neutral)
+        self.x12.setBrush(self.brush_neutral)
+        self.x13.setBrush(self.brush_neutral)
+        self.x14.setBrush(self.brush_neutral)
+        self.x15.setBrush(self.brush_neutral)
+        self.x16.setBrush(self.brush_neutral)
+        self.x17.setBrush(self.brush_neutral)
+        self.x18.setBrush(self.brush_neutral)
+        self.x19.setBrush(self.brush_neutral)
+        self.x20.setBrush(self.brush_neutral)
+        self.x21.setBrush(self.brush_neutral)
+        self.x22.setBrush(self.brush_neutral)
+        self.x23.setBrush(self.brush_neutral)
+        self.x24.setBrush(self.brush_neutral)
+        self.x25.setBrush(self.brush_neutral)
+        self.x26.setBrush(self.brush_neutral)
+        self.x27.setBrush(self.brush_neutral)
+        self.x28.setBrush(self.brush_neutral)
+        self.x29.setBrush(self.brush_neutral)
+        self.x30.setBrush(self.brush_neutral)
+        self.x31.setBrush(self.brush_neutral)
+
+        self.x0_name.setBrush(self.brush_neutral)
+        self.x1_name.setBrush(self.brush_neutral)
+        self.x2_name.setBrush(self.brush_neutral)
+        self.x3_name.setBrush(self.brush_neutral)
+        self.x4_name.setBrush(self.brush_neutral)
+        self.x5_name.setBrush(self.brush_neutral)
+        self.x6_name.setBrush(self.brush_neutral)
+        self.x7_name.setBrush(self.brush_neutral)
+        self.x8_name.setBrush(self.brush_neutral)
+        self.x9_name.setBrush(self.brush_neutral)
+        self.x10_name.setBrush(self.brush_neutral)
+        self.x11_name.setBrush(self.brush_neutral)
+        self.x12_name.setBrush(self.brush_neutral)
+        self.x13_name.setBrush(self.brush_neutral)
+        self.x14_name.setBrush(self.brush_neutral)
+        self.x15_name.setBrush(self.brush_neutral)
+        self.x16_name.setBrush(self.brush_neutral)
+        self.x17_name.setBrush(self.brush_neutral)
+        self.x18_name.setBrush(self.brush_neutral)
+        self.x19_name.setBrush(self.brush_neutral)
+        self.x20_name.setBrush(self.brush_neutral)
+        self.x21_name.setBrush(self.brush_neutral)
+        self.x22_name.setBrush(self.brush_neutral)
+        self.x23_name.setBrush(self.brush_neutral)
+        self.x24_name.setBrush(self.brush_neutral)
+        self.x25_name.setBrush(self.brush_neutral)
+        self.x26_name.setBrush(self.brush_neutral)
+        self.x27_name.setBrush(self.brush_neutral)
+        self.x28_name.setBrush(self.brush_neutral)
+        self.x29_name.setBrush(self.brush_neutral)
+        self.x30_name.setBrush(self.brush_neutral)
+        self.x31_name.setBrush(self.brush_neutral)
+
+        # color regs if they are enabled
+        if (int(values["x1_en"])): self.x1.setBrush(self.brush_stage_valid) or self.x1_name.setBrush(self.brush_stage_valid)
+        if (int(values["x2_en"])): self.x2.setBrush(self.brush_stage_valid) or self.x2_name.setBrush(self.brush_stage_valid)
+        if (int(values["x3_en"])): self.x3.setBrush(self.brush_stage_valid) or self.x3_name.setBrush(self.brush_stage_valid)
+        if (int(values["x4_en"])): self.x4.setBrush(self.brush_stage_valid) or self.x4_name.setBrush(self.brush_stage_valid)
+        if (int(values["x5_en"])): self.x5.setBrush(self.brush_stage_valid) or self.x5_name.setBrush(self.brush_stage_valid)
+        if (int(values["x6_en"])): self.x6.setBrush(self.brush_stage_valid) or self.x6_name.setBrush(self.brush_stage_valid)
+        if (int(values["x7_en"])): self.x7.setBrush(self.brush_stage_valid) or self.x7_name.setBrush(self.brush_stage_valid)
+        if (int(values["x8_en"])): self.x8.setBrush(self.brush_stage_valid) or self.x8_name.setBrush(self.brush_stage_valid)
+        if (int(values["x9_en"])): self.x9.setBrush(self.brush_stage_valid) or self.x9_name.setBrush(self.brush_stage_valid)
+        if (int(values["x10_en"])): self.x10.setBrush(self.brush_stage_valid) or self.x10_name.setBrush(self.brush_stage_valid)
+        if (int(values["x11_en"])): self.x11.setBrush(self.brush_stage_valid) or self.x11_name.setBrush(self.brush_stage_valid)
+        if (int(values["x12_en"])): self.x12.setBrush(self.brush_stage_valid) or self.x12_name.setBrush(self.brush_stage_valid)
+        if (int(values["x13_en"])): self.x13.setBrush(self.brush_stage_valid) or self.x13_name.setBrush(self.brush_stage_valid)
+        if (int(values["x14_en"])): self.x14.setBrush(self.brush_stage_valid) or self.x14_name.setBrush(self.brush_stage_valid)
+        if (int(values["x15_en"])): self.x15.setBrush(self.brush_stage_valid) or self.x15_name.setBrush(self.brush_stage_valid)
+        if (int(values["x16_en"])): self.x16.setBrush(self.brush_stage_valid) or self.x16_name.setBrush(self.brush_stage_valid)
+        if (int(values["x17_en"])): self.x17.setBrush(self.brush_stage_valid) or self.x17_name.setBrush(self.brush_stage_valid)
+        if (int(values["x18_en"])): self.x18.setBrush(self.brush_stage_valid) or self.x18_name.setBrush(self.brush_stage_valid)
+        if (int(values["x19_en"])): self.x19.setBrush(self.brush_stage_valid) or self.x19_name.setBrush(self.brush_stage_valid)
+        if (int(values["x20_en"])): self.x20.setBrush(self.brush_stage_valid) or self.x20_name.setBrush(self.brush_stage_valid)
+        if (int(values["x21_en"])): self.x21.setBrush(self.brush_stage_valid) or self.x21_name.setBrush(self.brush_stage_valid)
+        if (int(values["x22_en"])): self.x22.setBrush(self.brush_stage_valid) or self.x22_name.setBrush(self.brush_stage_valid)
+        if (int(values["x23_en"])): self.x23.setBrush(self.brush_stage_valid) or self.x23_name.setBrush(self.brush_stage_valid)
+        if (int(values["x24_en"])): self.x24.setBrush(self.brush_stage_valid) or self.x24_name.setBrush(self.brush_stage_valid)
+        if (int(values["x25_en"])): self.x25.setBrush(self.brush_stage_valid) or self.x25_name.setBrush(self.brush_stage_valid)
+        if (int(values["x26_en"])): self.x26.setBrush(self.brush_stage_valid) or self.x26_name.setBrush(self.brush_stage_valid)
+        if (int(values["x27_en"])): self.x27.setBrush(self.brush_stage_valid) or self.x27_name.setBrush(self.brush_stage_valid)
+        if (int(values["x28_en"])): self.x28.setBrush(self.brush_stage_valid) or self.x28_name.setBrush(self.brush_stage_valid)
+        if (int(values["x29_en"])): self.x29.setBrush(self.brush_stage_valid) or self.x29_name.setBrush(self.brush_stage_valid)
+        if (int(values["x30_en"])): self.x30.setBrush(self.brush_stage_valid) or self.x30_name.setBrush(self.brush_stage_valid)
+        if (int(values["x31_en"])): self.x31.setBrush(self.brush_stage_valid) or self.x31_name.setBrush(self.brush_stage_valid)
+
+
+        #self.bypassdebugI0RS1.setText(values["i0_rs1bypass"])
+        #self.bypassdebugI0RS2.setText(values["i0_rs2bypass"])
+        #self.bypassdebugI1RS1.setText(values["i1_rs1bypass"])
+        #self.bypassdebugI1RS2.setText(values["i1_rs2bypass"])
 
     def _createCycleLabel(self):
         layout = QHBoxLayout()
@@ -1696,12 +1878,78 @@ class SweRVisualCtrl():
             "pc2"         : SWERV_DEC_IB + "pc2[36:0]",
             "pc3"         : SWERV_DEC_IB + "pc3[36:0]",
 
+            # GPRs
+            "x1"          : SWERV_GPR + "gpr[1].gprff.dout[31:0]",
+            "x2"          : SWERV_GPR + "gpr[2].gprff.dout[31:0]",
+            "x3"          : SWERV_GPR + "gpr[3].gprff.dout[31:0]",
+            "x4"          : SWERV_GPR + "gpr[4].gprff.dout[31:0]",
+            "x5"          : SWERV_GPR + "gpr[5].gprff.dout[31:0]",
+            "x6"          : SWERV_GPR + "gpr[6].gprff.dout[31:0]",
+            "x7"          : SWERV_GPR + "gpr[7].gprff.dout[31:0]",
+            "x8"          : SWERV_GPR + "gpr[8].gprff.dout[31:0]",
+            "x9"          : SWERV_GPR + "gpr[9].gprff.dout[31:0]",
+            "x10"         : SWERV_GPR + "gpr[10].gprff.dout[31:0]",
+            "x11"         : SWERV_GPR + "gpr[11].gprff.dout[31:0]",
+            "x12"         : SWERV_GPR + "gpr[12].gprff.dout[31:0]",
+            "x13"         : SWERV_GPR + "gpr[13].gprff.dout[31:0]",
+            "x14"         : SWERV_GPR + "gpr[14].gprff.dout[31:0]",
+            "x15"         : SWERV_GPR + "gpr[15].gprff.dout[31:0]",
+            "x16"         : SWERV_GPR + "gpr[16].gprff.dout[31:0]",
+            "x17"         : SWERV_GPR + "gpr[17].gprff.dout[31:0]",
+            "x18"         : SWERV_GPR + "gpr[18].gprff.dout[31:0]",
+            "x19"         : SWERV_GPR + "gpr[19].gprff.dout[31:0]",
+            "x20"         : SWERV_GPR + "gpr[20].gprff.dout[31:0]",
+            "x21"         : SWERV_GPR + "gpr[21].gprff.dout[31:0]",
+            "x22"         : SWERV_GPR + "gpr[22].gprff.dout[31:0]",
+            "x23"         : SWERV_GPR + "gpr[23].gprff.dout[31:0]",
+            "x24"         : SWERV_GPR + "gpr[24].gprff.dout[31:0]",
+            "x25"         : SWERV_GPR + "gpr[25].gprff.dout[31:0]",
+            "x26"         : SWERV_GPR + "gpr[26].gprff.dout[31:0]",
+            "x27"         : SWERV_GPR + "gpr[27].gprff.dout[31:0]",
+            "x28"         : SWERV_GPR + "gpr[28].gprff.dout[31:0]",
+            "x29"         : SWERV_GPR + "gpr[29].gprff.dout[31:0]",
+            "x30"         : SWERV_GPR + "gpr[30].gprff.dout[31:0]",
+            "x31"         : SWERV_GPR + "gpr[31].gprff.dout[31:0]",
+
+            "x1_en"          : SWERV_GPR + "gpr[1].gprff.en",
+            "x2_en"          : SWERV_GPR + "gpr[2].gprff.en",
+            "x3_en"          : SWERV_GPR + "gpr[3].gprff.en",
+            "x4_en"          : SWERV_GPR + "gpr[4].gprff.en",
+            "x5_en"          : SWERV_GPR + "gpr[5].gprff.en",
+            "x6_en"          : SWERV_GPR + "gpr[6].gprff.en",
+            "x7_en"          : SWERV_GPR + "gpr[7].gprff.en",
+            "x8_en"          : SWERV_GPR + "gpr[8].gprff.en",
+            "x9_en"          : SWERV_GPR + "gpr[9].gprff.en",
+            "x10_en"         : SWERV_GPR + "gpr[10].gprff.en",
+            "x11_en"         : SWERV_GPR + "gpr[11].gprff.en",
+            "x12_en"         : SWERV_GPR + "gpr[12].gprff.en",
+            "x13_en"         : SWERV_GPR + "gpr[13].gprff.en",
+            "x14_en"         : SWERV_GPR + "gpr[14].gprff.en",
+            "x15_en"         : SWERV_GPR + "gpr[15].gprff.en",
+            "x16_en"         : SWERV_GPR + "gpr[16].gprff.en",
+            "x17_en"         : SWERV_GPR + "gpr[17].gprff.en",
+            "x18_en"         : SWERV_GPR + "gpr[18].gprff.en",
+            "x19_en"         : SWERV_GPR + "gpr[19].gprff.en",
+            "x20_en"         : SWERV_GPR + "gpr[20].gprff.en",
+            "x21_en"         : SWERV_GPR + "gpr[21].gprff.en",
+            "x22_en"         : SWERV_GPR + "gpr[22].gprff.en",
+            "x23_en"         : SWERV_GPR + "gpr[23].gprff.en",
+            "x24_en"         : SWERV_GPR + "gpr[24].gprff.en",
+            "x25_en"         : SWERV_GPR + "gpr[25].gprff.en",
+            "x26_en"         : SWERV_GPR + "gpr[26].gprff.en",
+            "x27_en"         : SWERV_GPR + "gpr[27].gprff.en",
+            "x28_en"         : SWERV_GPR + "gpr[28].gprff.en",
+            "x29_en"         : SWERV_GPR + "gpr[29].gprff.en",
+            "x30_en"         : SWERV_GPR + "gpr[30].gprff.en",
+            "x31_en"         : SWERV_GPR + "gpr[31].gprff.en",
+
             # Decode Ctrl
             "dec_i0_decode_d" : SWERV_DEC_DECODE + "dec_i0_decode_d",
             "dec_i1_decode_d" : SWERV_DEC_DECODE + "dec_i1_decode_d",
             "freeze"          : SWERV_DEC_DECODE + "freeze",
             "flush_final_e3"  : SWERV_DEC_DECODE + "flush_final_e3",
             "flush_lower_wb"  : SWERV_DEC_DECODE + "flush_lower_wb",
+            "nonblock_load_wen" : SWERV_DEC_DECODE + "dec_nonblock_load_wen",
 
             "i0_inst_e1" : SWERV_DEC_DECODE + "i0_inst_e1[31:0]",
             "i0_inst_e2" : SWERV_DEC_DECODE + "i0_inst_e2[31:0]",
@@ -1807,6 +2055,18 @@ class SweRVisualCtrl():
             "i0_rs2bypass" : SWERV_DEC_DECODE + "i0_rs2bypass[9:0]",
             "i1_rs1bypass" : SWERV_DEC_DECODE + "i1_rs1bypass[9:0]",
             "i1_rs2bypass" : SWERV_DEC_DECODE + "i1_rs2bypass[9:0]",
+
+            "e1_i0_rd"     : SWERV_DEC_DECODE + "e1d.i0rd[4:0]",
+            "e2_i0_rd"     : SWERV_DEC_DECODE + "e2d.i0rd[4:0]",
+            "e3_i0_rd"     : SWERV_DEC_DECODE + "e3d.i0rd[4:0]",
+            "e4_i0_rd"     : SWERV_DEC_DECODE + "e4d.i0rd[4:0]",
+            "wb_i0_rd"     : SWERV_DEC_DECODE + "wbd.i0rd[4:0]",
+        
+            "e1_i1_rd"     : SWERV_DEC_DECODE + "e1d.i1rd[4:0]",
+            "e2_i1_rd"     : SWERV_DEC_DECODE + "e2d.i1rd[4:0]",
+            "e3_i1_rd"     : SWERV_DEC_DECODE + "e3d.i1rd[4:0]",
+            "e4_i1_rd"     : SWERV_DEC_DECODE + "e4d.i1rd[4:0]",
+            "wb_i1_rd"     : SWERV_DEC_DECODE + "wbd.i1rd[4:0]",
         }
         values = {}
         for key in signals:
