@@ -35,6 +35,7 @@ SWERV_DEC_DECODE = SWERV_TOP + "dec.decode."
 SWERV_DEC_IB     = SWERV_TOP + "dec.instbuff."
 SWERV_GPR        = SWERV_TOP + "dec.arf.gpr_banks[0]."
 SWERV_EXU        = SWERV_TOP + "exu."
+SWERV_TLU        = SWERV_TOP + "dec.tlu."
 
 # ===[ GUI Class ]=========================================
 class SweRVisual(QMainWindow):
@@ -67,6 +68,8 @@ class SweRVisual(QMainWindow):
         self.brush_stage_valid = QBrush(QColor(0x71, 0xff, 0x7d))
         self.brush_stage_valid_i1 = QBrush(QColor(0x10, 0xbf, 0x7d))
         self.brush_stage_invalid = QBrush(QColor(0xff, 0x5b, 0x62))
+
+        self.brush_copy = QBrush(Qt.yellow)
 
         self.brush_gpr_rs1 = QBrush(QColor(Qt.cyan))
         self.brush_gpr_rs2 = QBrush(QColor(Qt.magenta))
@@ -109,13 +112,19 @@ class SweRVisual(QMainWindow):
         offset = self.offset
         spacing = self.spacing
 
+        i0_rs1_height = (offset+height/2)-offset
+        i0_rs2_height = (offset+height/2)+offset
+
+        i1_rs1_height = (offset+1.5*height+2*spacing)-offset
+        i1_rs2_height = (offset+1.5*height+2*spacing)+offset
+
         # GPR -> I0 RS1
         self.I0_RS1_GPR = QGraphicsItemGroup(parent=self.exe_bounding_rect)
         arrow = ArrowItem(parent=self.exe_bounding_rect, headLen=20, tailLen=25, angle=180)
-        arrow.setPos(0, 50)
+        arrow.setPos(0, i0_rs1_height)
         arrow.setPen(self.pen_arrow_rs1)
         arrow.setBrush(self.brush_arrow_head_rs1)
-        line = QGraphicsLineItem(-45, 50, -45, 350+offset+spacing*4, parent=self.exe_bounding_rect)
+        line = QGraphicsLineItem(-45, i0_rs1_height, -45, 350+offset+spacing*4, parent=self.exe_bounding_rect)
         line2 = QGraphicsLineItem(-45, 350+offset+spacing*4, 0, 350+offset+spacing*4, parent=self.exe_bounding_rect)
         line.setPen(self.pen_line_rs1)
         line2.setPen(self.pen_line_rs1)
@@ -126,10 +135,10 @@ class SweRVisual(QMainWindow):
         # GPR -> I0 RS2
         self.I0_RS2_GPR = QGraphicsItemGroup(parent=self.exe_bounding_rect)
         arrow = ArrowItem(parent=self.exe_bounding_rect, headLen=20, tailLen=20, angle=180)
-        arrow.setPos(0, 70)
+        arrow.setPos(0, i0_rs2_height)
         arrow.setPen(self.pen_arrow_rs2)
         arrow.setBrush(self.brush_arrow_head_rs2)
-        line = QGraphicsLineItem(-40, 70, -40, 350+offset+spacing*3, parent=self.exe_bounding_rect)
+        line = QGraphicsLineItem(-40, i0_rs2_height, -40, 350+offset+spacing*3, parent=self.exe_bounding_rect)
         line2 = QGraphicsLineItem(-40, 350+offset+spacing*3, 0, 350+offset+spacing*3, parent=self.exe_bounding_rect)
         line.setPen(self.pen_line_rs2)
         line2.setPen(self.pen_line_rs2)
@@ -140,10 +149,10 @@ class SweRVisual(QMainWindow):
         # GPR -> I1 RS1
         self.I1_RS1_GPR = QGraphicsItemGroup(parent=self.exe_bounding_rect)
         arrow = ArrowItem(parent=self.exe_bounding_rect, headLen=20, tailLen=10, angle=180)
-        arrow.setPos(0, 170)
+        arrow.setPos(0, i1_rs1_height)
         arrow.setPen(self.pen_arrow_rs1)
         arrow.setBrush(self.brush_arrow_head_rs1)
-        line = QGraphicsLineItem(-30, 170, -30, 350+offset+spacing*2, parent=self.exe_bounding_rect)
+        line = QGraphicsLineItem(-30, i1_rs1_height, -30, 350+offset+spacing*2, parent=self.exe_bounding_rect)
         line2 = QGraphicsLineItem(-30, 350+offset+spacing*2, 0, 350+offset+spacing*2, parent=self.exe_bounding_rect)
         line.setPen(self.pen_line_rs1)
         line2.setPen(self.pen_line_rs1)
@@ -154,10 +163,10 @@ class SweRVisual(QMainWindow):
         # GPR -> I1 RS2
         self.I1_RS2_GPR = QGraphicsItemGroup(parent=self.exe_bounding_rect)
         arrow = ArrowItem(parent=self.exe_bounding_rect, headLen=20, tailLen=5, angle=180)
-        arrow.setPos(0, 190)
+        arrow.setPos(0, i1_rs2_height)
         arrow.setPen(self.pen_arrow_rs2)
         arrow.setBrush(self.brush_arrow_head_rs2)
-        line = QGraphicsLineItem(-25, 190, -25, 350+offset+spacing*1, parent=self.exe_bounding_rect)
+        line = QGraphicsLineItem(-25, i1_rs2_height, -25, 350+offset+spacing*1, parent=self.exe_bounding_rect)
         line2 = QGraphicsLineItem(-25, 350+offset+spacing*1, 0, 350+offset+spacing*1, parent=self.exe_bounding_rect)
         line.setPen(self.pen_line_rs2)
         line2.setPen(self.pen_line_rs2)
@@ -437,7 +446,7 @@ class SweRVisual(QMainWindow):
         offset = self.offset
 
         # IB 
-        self.IB_bounding_rect = self.scene.addRect(0, 0, 3*width, height)
+        self.IB_bounding_rect = self.scene.addRect(0, 0, 3.5*width, height)
         
         self.bypassdebugI0RS1 = QGraphicsSimpleTextItem("", parent=self.IB_bounding_rect)
         self.bypassdebugI0RS2 = QGraphicsSimpleTextItem("", parent=self.IB_bounding_rect)
@@ -449,13 +458,22 @@ class SweRVisual(QMainWindow):
         self.IB_instr_box = []
         self.IB_PC_text = []
         self.IB_instr_text = []
+        self.IB_copy_box = []
+        self.IB_copy_text = []
         for i in range(4):
-            self.IB_valid_box.append(QGraphicsRectItem(0, 0,  30, height/4, parent=self.IB_bounding_rect))
+            self.IB_valid_box.append(QGraphicsRectItem(0, 0, 30, height/4, parent=self.IB_bounding_rect))
             self._centerObjectWithinParent(QGraphicsSimpleTextItem("IB{}".format(i), parent=self.IB_valid_box[i]))
+            self.IB_copy_box.append(QGraphicsRectItem(0, 0, 30, height/4, parent=self.IB_bounding_rect))
+            self._centerObjectWithinParent(QGraphicsSimpleTextItem("C", parent=self.IB_copy_box[i]))
             self.IB_PC_box.append(QGraphicsRectItem(0, 0, width, height/4, parent=self.IB_bounding_rect))
-            self.IB_instr_box.append(QGraphicsRectItem(0, 0, 2*width-30, height/4, parent=self.IB_bounding_rect))
+            self.IB_instr_box.append(QGraphicsRectItem(0, 0, 2*width, height/4, parent=self.IB_bounding_rect))
             self.IB_PC_text.append(QGraphicsSimpleTextItem("PC: 00000000", parent=self.IB_PC_box[i]))
             self.IB_instr_text.append(QGraphicsSimpleTextItem("???", parent=self.IB_instr_box[i]))
+
+        self.CSR_rect = self.scene.addRect(0, 0, width, height)
+        self.CSRs = {}
+        self.CSRs["faultless"] = QGraphicsRectItem(0, 0, width, height/4, parent=self.CSR_rect)
+        self._centerObjectWithinParent(QGraphicsSimpleTextItem("faultless", parent=self.CSRs["faultless"]))
 
         # stalling lines
         self.stall_i0 = self.scene.addLine(550, offset, 550, offset+height, QPen(Qt.red, 3, Qt.DotLine))
@@ -476,10 +494,14 @@ class SweRVisual(QMainWindow):
         self.I0_info = []
         self.I0_class_text = []
         self.I0_info_text = []
+        self.I0_copy = []
+        self.I0_copy_text = []
         for i in range(5):
             self.I0_stages.append(QGraphicsRectItem(0, 0, width, height, parent=self.exe_bounding_rect))
             self.I0_class.append(QGraphicsRectItem(0, 0, width, 20, parent=self.I0_stages[i]))
             self.I0_info.append(QGraphicsRectItem(0, 0, width, 60, parent=self.I0_stages[i]))
+            self.I0_copy.append(QGraphicsRectItem(0, 0, width, 20, parent=self.I0_stages[i]))
+            self.I0_copy_text.append(QGraphicsSimpleTextItem("Copy", parent=self.I0_copy[i]))
             self.I0_class_text.append(QGraphicsSimpleTextItem("I0 class", parent=self.I0_class[i]))
             self.I0_info_text.append(QGraphicsSimpleTextItem("Instr: ???\nPC: ???\nRD:  x00", parent=self.I0_info[i]))
 
@@ -488,10 +510,14 @@ class SweRVisual(QMainWindow):
         self.I1_info = []
         self.I1_class_text = []
         self.I1_info_text = []
+        self.I1_copy = []
+        self.I1_copy_text = []
         for i in range(5):
             self.I1_stages.append(QGraphicsRectItem(0, 0, width, height, parent=self.exe_bounding_rect))
             self.I1_class.append(QGraphicsRectItem(0, 0, width, 20, parent=self.I1_stages[i]))
             self.I1_info.append(QGraphicsRectItem(0, 0, width, 60, parent=self.I1_stages[i]))
+            self.I1_copy.append(QGraphicsRectItem(0, 0, width, 20, parent=self.I1_stages[i]))
+            self.I1_copy_text.append(QGraphicsSimpleTextItem("Copy", parent=self.I1_copy[i]))
             self.I1_class_text.append(QGraphicsSimpleTextItem("I0 class", parent=self.I1_class[i]))
             self.I1_info_text.append(QGraphicsSimpleTextItem("Instr: ???\nPC: ???\nRD:  x00", parent=self.I1_info[i]))
 
@@ -535,8 +561,9 @@ class SweRVisual(QMainWindow):
         # IB relative to parent
         for i in range(4):
             self.IB_valid_box[i].setPos(0, i*(height/4))
-            self.IB_PC_box[i].setPos(30, i*(height/4))
-            self.IB_instr_box[i].setPos(30+width, i*(height/4))
+            self.IB_copy_box[i].setPos(30, i*(height/4))
+            self.IB_PC_box[i].setPos(60, i*(height/4))
+            self.IB_instr_box[i].setPos(60+width, i*(height/4))
             self._centerObjectWithinParent(self.IB_PC_text[i])
             self._leftAlignObjectWithinParent(self.IB_instr_text[i])
 
@@ -555,12 +582,16 @@ class SweRVisual(QMainWindow):
             self._centerObjectWithinParent(self.I0_class_text[i])
             self.I0_info[i].setPos(0, 20)
             self._leftAlignObjectWithinParent(self.I0_info_text[i])
+            self.I0_copy[i].setPos(0, 80)
+            self._centerObjectWithinParent(self.I0_copy_text[i])
 
         for i in range(5):
             self.I1_stages[i].setPos(offset+i*(width+spacing), offset+height+2*spacing)
             self._centerObjectWithinParent(self.I1_class_text[i])
             self.I1_info[i].setPos(0, 20)
             self._leftAlignObjectWithinParent(self.I1_info_text[i])
+            self.I1_copy[i].setPos(0, 80)
+            self._centerObjectWithinParent(self.I1_copy_text[i])
 
         # refile
         regwidth = 110
@@ -578,6 +609,7 @@ class SweRVisual(QMainWindow):
         
         # positioning of modules
         self.IB_bounding_rect.setPos(0, 0)#(width+spacing)/2)
+        self.CSR_rect.setPos(0, 2*height)
         self.exe_bounding_rect.setPos(4*(width + spacing), 0) 
         self.regfile.setPos(4*(width+spacing), 350)
 
@@ -590,9 +622,12 @@ class SweRVisual(QMainWindow):
         mul_name   = "{}_{}c.mul".format(pipe, stage)
         sec_name   = "{}_{}c.sec".format(pipe, stage)
         if (int(values[valid_name])):
-            if int(values[alu_name]):
+            if int(values[alu_name]) or int(values[sec_name]):
                 if (stage == "e5"):
-                    text = "ALU"
+                    if int(values[alu_name]):
+                        text = "ALU" 
+                    else:
+                        text = "SEC"
                 elif int(values["{}_{}_beq".format(pipe, stage)]):
                     text = "BEQ"
                 elif int(values["{}_{}_bge".format(pipe, stage)]):
@@ -604,102 +639,48 @@ class SweRVisual(QMainWindow):
                 elif int(values["{}_{}_jal".format(pipe, stage)]):
                     text = "JAL"
                 else:
-                    text = "ALU"
+                    if int(values[alu_name]):
+                        text = "ALU" 
+                    else:
+                        text = "SEC"
             elif int(values[load_name]):
                 text = "LOAD"
             elif int(values[mul_name]):
                 text = "MUL"
-            elif int(values[sec_name]):
-                text = "SEC"
         return text
 
     def _toggleArrowVisibilityI0_RS1(self, val):
-        if   (val & 0x200):
-            self.I0_RS1_From_I1[0].show()
-        elif (val & 0x100):
-            self.I0_RS1_From_I0[0].show()
-        elif (val & 0x80):
-            self.I0_RS1_From_I1[1].show()
-        elif (val & 0x40):
-            self.I0_RS1_From_I0[1].show()
-        elif (val & 0x20):
-            self.I0_RS1_From_I1[2].show()
-        elif (val & 0x10):
-            self.I0_RS1_From_I0[2].show()
-        elif (val & 0x8):
-            self.I0_RS1_From_I1[3].show()
-        elif (val & 0x4):
-            self.I0_RS1_From_I0[3].show()
-        elif (val & 0x2):
-            self.I0_RS1_From_I1[4].show()
-        elif (val & 0x1):
-            self.I0_RS1_From_I0[4].show()
+        for i in range(10):
+            if ((val >> (9-i)) & 1):
+                if (i % 2): 
+                    self.I0_RS1_From_I0[int(i/2)].show()
+                else:
+                    self.I0_RS1_From_I1[int(i/2)].show()
 
     def _toggleArrowVisibilityI0_RS2(self, val):
-        if   (val & 0x200):
-            self.I0_RS2_From_I1[0].show()
-        elif (val & 0x100):
-            self.I0_RS2_From_I0[0].show()
-        elif (val & 0x80):
-            self.I0_RS2_From_I1[1].show()
-        elif (val & 0x40):
-            self.I0_RS2_From_I0[1].show()
-        elif (val & 0x20):
-            self.I0_RS2_From_I1[2].show()
-        elif (val & 0x10):
-            self.I0_RS2_From_I0[2].show()
-        elif (val & 0x8):
-            self.I0_RS2_From_I1[3].show()
-        elif (val & 0x4):
-            self.I0_RS2_From_I0[3].show()
-        elif (val & 0x2):
-            self.I0_RS2_From_I1[4].show()
-        elif (val & 0x1):
-            self.I0_RS2_From_I0[4].show()
-    
+        for i in range(10):
+            if ((val >> (9-i)) & 1):
+                if (i % 2): 
+                    self.I0_RS2_From_I0[int(i/2)].show()
+                else:
+                    self.I0_RS2_From_I1[int(i/2)].show()
+
     def _toggleArrowVisibilityI1_RS1(self, val):
-        if   (val & 0x200):
-            self.I1_RS1_From_I1[0].show()
-        elif (val & 0x100):
-            self.I1_RS1_From_I0[0].show()
-        elif (val & 0x80):
-            self.I1_RS1_From_I1[1].show()
-        elif (val & 0x40):
-            self.I1_RS1_From_I0[1].show()
-        elif (val & 0x20):
-            self.I1_RS1_From_I1[2].show()
-        elif (val & 0x10):
-            self.I1_RS1_From_I0[2].show()
-        elif (val & 0x8):
-            self.I1_RS1_From_I1[3].show()
-        elif (val & 0x4):
-            self.I1_RS1_From_I0[3].show()
-        elif (val & 0x2):
-            self.I1_RS1_From_I1[4].show()
-        elif (val & 0x1):
-            self.I1_RS1_From_I0[4].show()
+        for i in range(10):
+            if ((val >> (9-i)) & 1):
+                if (i % 2): 
+                    self.I1_RS1_From_I0[int(i/2)].show()
+                else:
+                    self.I1_RS1_From_I1[int(i/2)].show()
 
     def _toggleArrowVisibilityI1_RS2(self, val):
-        if   (val & 0x200):
-            self.I1_RS2_From_I1[0].show()
-        elif (val & 0x100):
-            self.I1_RS2_From_I0[0].show()
-        elif (val & 0x80):
-            self.I1_RS2_From_I1[1].show()
-        elif (val & 0x40):
-            self.I1_RS2_From_I0[1].show()
-        elif (val & 0x20):
-            self.I1_RS2_From_I1[2].show()
-        elif (val & 0x10):
-            self.I1_RS2_From_I0[2].show()
-        elif (val & 0x8):
-            self.I1_RS2_From_I1[3].show()
-        elif (val & 0x4):
-            self.I1_RS2_From_I0[3].show()
-        elif (val & 0x2):
-            self.I1_RS2_From_I1[4].show()
-        elif (val & 0x1):
-            self.I1_RS2_From_I0[4].show()
+        for i in range(10):
+            if ((val >> (9-i)) & 1):
+                if (i % 2): 
+                    self.I1_RS2_From_I0[int(i/2)].show()
+                else:
+                    self.I1_RS2_From_I1[int(i/2)].show()
+
 
     def _colorRegs(self, values):
         for i in range(1,32):
@@ -747,6 +728,7 @@ class SweRVisual(QMainWindow):
         # paint valid instructions green and invalid ones red
         for i in range(4):
             self.IB_valid_box[i].setBrush(self.brush_stage_valid) if ((int(values["ibval"], 2) >> i) & 1) else self.IB_valid_box[i].setBrush(self.brush_stage_invalid)
+            self.IB_copy_box[i].setBrush(self.brush_copy) if (int(values["ic{}".format(i)])) else self.IB_copy_box[i].setBrush(self.brush_neutral)
 
         # valid stages are green, invalid stages are red
         for i in range(5):
@@ -790,9 +772,15 @@ class SweRVisual(QMainWindow):
             self.I1_class_text[i].setText(self._getStageClassText(values, "e{}".format(i+1), "i1"))
             self.I0_info_text[i].setText("Instr: {}\nPC: {:08X}\nRD: x{}".format(assembly._getInstruction("{:08x}".format(int(values["i0_pc_e{}".format(i+1)]+"0", 2))).split(' ')[0], int(values["i0_pc_e{}".format(i+1)]+"0", 2), int(values["e{}_i0_rd".format(i+1)], 2)))
             self.I1_info_text[i].setText("Instr: {}\nPC: {:08X}\nRD: x{}".format(assembly._getInstruction("{:08x}".format(int(values["i1_pc_e{}".format(i+1)]+"0", 2))).split(' ')[0], int(values["i1_pc_e{}".format(i+1)]+"0", 2), int(values["e{}_i1_rd".format(i+1)], 2)))
+            self.I0_copy_text[i].hide()
+            self.I0_copy[i].setBrush(self.brush_copy) if (int(values["i0_e{}_copy".format(i+1)])) else self.I0_copy[i].setBrush(self.brush_neutral)
+            self.I1_copy_text[i].hide()
+            self.I1_copy[i].setBrush(self.brush_copy) if (int(values["i1_e{}_copy".format(i+1)])) else self.I1_copy[i].setBrush(self.brush_neutral)
 
         self.nonblock_load_commit.hide()
         if (int(values["nonblock_load_wen"])): self.nonblock_load_commit.show()
+
+        self.CSRs["faultless"].setBrush(self.brush_copy) if (int(values["faultless"])) else self.CSRs["faultless"].setBrush(self.brush_neutral)
 
         self._hideAllArrows()
         if (int(values["dec_i0_decode_d"])): self._toggleArrowVisibilityI0_RS1(int(values["i0_rs1bypass"], 2))
@@ -892,6 +880,10 @@ class SweRVisualCtrl():
             "dec_i1_pc_d" : SWERV_DEC_IB + "dec_i1_pc_d[31:1]",
             "pc2"         : SWERV_DEC_IB + "pc2[36:0]",
             "pc3"         : SWERV_DEC_IB + "pc3[36:0]",
+            "ic0"         : SWERV_DEC_IB + "ic0",
+            "ic1"         : SWERV_DEC_IB + "ic1",
+            "ic2"         : SWERV_DEC_IB + "ic2",
+            "ic3"         : SWERV_DEC_IB + "ic3",
 
             # GPRs
             "i0_rs1_en_d" : SWERV_DEC_DECODE + "dec_i0_rs1_en_d", 
@@ -1023,6 +1015,18 @@ class SweRVisualCtrl():
             "i1_pc_e3" : SWERV_DEC_DECODE + "i1_pc_e3[31:1]",
             "i1_pc_e4" : SWERV_DEC_DECODE + "i1_pc_e4[31:1]",
             "i1_pc_e5" : SWERV_DEC_DECODE + "i1_pc_wb[31:1]",
+
+            "i0_e1_copy" : SWERV_DEC_DECODE + "i0_e1_copy",
+            "i0_e2_copy" : SWERV_DEC_DECODE + "i0_e2_copy",
+            "i0_e3_copy" : SWERV_DEC_DECODE + "i0_e3_copy",
+            "i0_e4_copy" : SWERV_DEC_DECODE + "i0_e4_copy",
+            "i0_e5_copy" : SWERV_DEC_DECODE + "i0_wb_copy",
+            
+            "i1_e1_copy" : SWERV_DEC_DECODE + "i1_e1_copy",
+            "i1_e2_copy" : SWERV_DEC_DECODE + "i1_e2_copy",
+            "i1_e3_copy" : SWERV_DEC_DECODE + "i1_e3_copy",
+            "i1_e4_copy" : SWERV_DEC_DECODE + "i1_e4_copy",
+            "i1_e5_copy" : SWERV_DEC_DECODE + "i1_wb_copy",
 
             "i0_dc.alu" : SWERV_DEC_DECODE + "i0_dc.alu",
             "i0_dc.load" : SWERV_DEC_DECODE + "i0_dc.load",
@@ -1163,6 +1167,9 @@ class SweRVisualCtrl():
             "i1_e4_blt"     : SWERV_EXU + "i1_ap_e4.blt",
             "i1_e4_bne"     : SWERV_EXU + "i1_ap_e4.bne",
             "i1_e4_jal"     : SWERV_EXU + "i1_ap_e4.jal",
+
+            # TLU
+            "faultless"     : SWERV_TLU + "faultless[1:0]",
         }
         values = {}
         for key in signals:
