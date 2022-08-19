@@ -46,7 +46,7 @@ class SweRVisual(QMainWindow):
         self.spacing = 20
         self.offset  = 10
         self.setWindowTitle("SweRVisualize")
-        self.setGeometry(200, 200, 1400, 800)
+        self.setGeometry(1200, 200, 1400, 800)
         self.generalLayout = QVBoxLayout()
         self._centralWidget = QWidget(self)
         self.setCentralWidget(self._centralWidget)
@@ -57,7 +57,9 @@ class SweRVisual(QMainWindow):
         self._setupDrawing()
         self._addObjectsToScene()
         self._addForwardingArrows()
+        self._addSpecialForwardingArrows()
         self._addGPRArrows()
+        self._addIBArrows()
         self._hideAllArrows()
         self._positionObjects()
 
@@ -105,6 +107,29 @@ class SweRVisual(QMainWindow):
         x_offset = self.offset
         y_offset = (obj.parentItem().boundingRect().height() - obj.boundingRect().height()) / 2
         obj.setPos(x_offset, y_offset)
+
+    def _addIBArrows(self):
+        width = self.width
+        height = self.height
+        offset = self.offset
+        spacing = self.spacing
+
+        ib_height = self.height/4
+
+        self.ib_write_arrows_i0 = []
+        self.ib_write_arrows_i1 = []
+        for i in range(4):
+            arrow_i0 = ArrowItem(parent=self.IB_bounding_rect, headLen=20, tailLen=25, angle=180)
+            arrow_i0.setPos(0, ib_height*i + ib_height/2)
+            arrow_i0.setBrush(self.brush_stage_valid)
+            arrow_i0.setPen(self.pen_arrow_wb_i0)
+            self.ib_write_arrows_i0.append(arrow_i0)
+            
+            arrow_i1 = ArrowItem(parent=self.IB_bounding_rect, headLen=20, tailLen=25, angle=180)
+            arrow_i1.setPos(0, ib_height*i + ib_height/2)
+            arrow_i1.setBrush(self.brush_stage_valid_i1)
+            arrow_i1.setPen(self.pen_arrow_wb_i1)
+            self.ib_write_arrows_i1.append(arrow_i1)
 
     def _addGPRArrows(self):
         width = self.width
@@ -437,6 +462,369 @@ class SweRVisual(QMainWindow):
             self.I1_RS1_From_I1[i].hide()
             self.I1_RS2_From_I1[i].hide()
 
+        for i in range(4):
+            self.ib_write_arrows_i0[i].hide()
+            self.ib_write_arrows_i1[i].hide()
+
+        # i0 WB -> E3, E4
+        self.I0_E3_RS1_From_i0_WB.hide()
+        self.I0_E3_RS2_From_i0_WB.hide()
+        self.I0_E4_RS1_From_i0_WB.hide()
+        self.I0_E4_RS2_From_i0_WB.hide()
+
+        self.I1_E3_RS1_From_i0_WB.hide()
+        self.I1_E3_RS2_From_i0_WB.hide()
+        self.I1_E4_RS1_From_i0_WB.hide()
+        self.I1_E4_RS2_From_i0_WB.hide()
+
+        # i1 WB -> E3, E4
+        self.I1_E3_RS1_From_i1_WB.hide()
+        self.I1_E3_RS2_From_i1_WB.hide()
+        self.I1_E4_RS1_From_i1_WB.hide()
+        self.I1_E4_RS2_From_i1_WB.hide()
+        
+        self.I0_E3_RS1_From_i1_WB.hide()
+        self.I0_E3_RS2_From_i1_WB.hide()
+        self.I0_E4_RS1_From_i1_WB.hide()
+        self.I0_E4_RS2_From_i1_WB.hide()
+
+        # E4 -> E4
+        self.I0_E4_RS1_From_i0_E4.hide()
+        self.I0_E4_RS2_From_i0_E4.hide()
+        self.I1_E4_RS1_From_i1_E4.hide()
+        self.I1_E4_RS2_From_i1_E4.hide()
+
+        self.I0_E4_RS1_From_i1_E4.hide()
+        self.I0_E4_RS2_From_i1_E4.hide()
+        self.I1_E4_RS1_From_i0_E4.hide()
+        self.I1_E4_RS2_From_i0_E4.hide()
+
+    def _addSpecialForwardingArrows(self):
+        width   = self.width
+        height  = self.height
+        spacing = self.spacing
+        offset  = self.offset
+
+        e1_middle_x = offset+width/2
+        
+        start_x = (width+offset) + 4*(width+spacing)
+
+        # -------------------------------------------------------------------------------------------------------------
+        # Forwarding from i0 WB
+
+        # i0 WB -> i0 E3 RS1
+        self.I0_E3_RS1_From_i0_WB = QGraphicsItemGroup(parent=self.exe_bounding_rect)
+        arrow = ArrowItem(parent=self.exe_bounding_rect, headLen=spacing, tailLen=offset, angle=270)
+        arrow.setPos(e1_middle_x+2*(width+spacing)+offset, offset)
+        arrow.setPen(self.pen_arrow_rs1)
+        arrow.setBrush(self.brush_arrow_head_rs1)
+        line1 = QGraphicsLineItem( e1_middle_x+4*(width+spacing) - offset,   offset, e1_middle_x+4*(width+spacing) - offset, -spacing, parent=self.exe_bounding_rect)
+        line2 = QGraphicsLineItem( e1_middle_x+4*(width+spacing) - offset, -spacing, e1_middle_x+2*(width+spacing) + offset, -spacing, parent=self.exe_bounding_rect)
+        line1.setPen(self.pen_line_rs1)
+        line2.setPen(self.pen_line_rs1)
+        self.I0_E3_RS1_From_i0_WB.addToGroup(line1)
+        self.I0_E3_RS1_From_i0_WB.addToGroup(line2)
+        self.I0_E3_RS1_From_i0_WB.addToGroup(arrow)
+        
+        # i0 WB -> i0 E3 RS2
+        self.I0_E3_RS2_From_i0_WB = QGraphicsItemGroup(parent=self.exe_bounding_rect)
+        arrow = ArrowItem(parent=self.exe_bounding_rect, headLen=spacing, tailLen=spacing, angle=270)
+        arrow.setPos(e1_middle_x+2*(width+spacing) - offset, offset)
+        arrow.setPen(self.pen_arrow_rs2)
+        arrow.setBrush(self.brush_arrow_head_rs2)
+        line1 = QGraphicsLineItem( e1_middle_x+4*(width+spacing) + offset,   offset, e1_middle_x+4*(width+spacing) + offset, -spacing-offset, parent=self.exe_bounding_rect)
+        line2 = QGraphicsLineItem( e1_middle_x+4*(width+spacing) + offset, -spacing-offset, e1_middle_x+2*(width+spacing) - offset, -spacing-offset, parent=self.exe_bounding_rect)
+        line1.setPen(self.pen_line_rs2)
+        line2.setPen(self.pen_line_rs2)
+        self.I0_E3_RS2_From_i0_WB.addToGroup(line1)
+        self.I0_E3_RS2_From_i0_WB.addToGroup(line2)
+        self.I0_E3_RS2_From_i0_WB.addToGroup(arrow)
+        
+        # i0 WB -> i0 E4 RS1
+        self.I0_E4_RS1_From_i0_WB = QGraphicsItemGroup(parent=self.exe_bounding_rect)
+        arrow = ArrowItem(parent=self.exe_bounding_rect, headLen=spacing, tailLen=offset, angle=270)
+        arrow.setPos(e1_middle_x+3*(width+spacing)+offset, offset)
+        arrow.setPen(self.pen_arrow_rs1)
+        arrow.setBrush(self.brush_arrow_head_rs1)
+        line1 = QGraphicsLineItem( e1_middle_x+4*(width+spacing) - offset,   offset, e1_middle_x+4*(width+spacing) - offset, -spacing, parent=self.exe_bounding_rect)
+        line2 = QGraphicsLineItem( e1_middle_x+4*(width+spacing) - offset, -spacing, e1_middle_x+3*(width+spacing) + offset, -spacing, parent=self.exe_bounding_rect)
+        line1.setPen(self.pen_line_rs1)
+        line2.setPen(self.pen_line_rs1)
+        self.I0_E4_RS1_From_i0_WB.addToGroup(line1)
+        self.I0_E4_RS1_From_i0_WB.addToGroup(line2)
+        self.I0_E4_RS1_From_i0_WB.addToGroup(arrow)
+        
+        # i0 WB -> i0 E4 RS2
+        self.I0_E4_RS2_From_i0_WB = QGraphicsItemGroup(parent=self.exe_bounding_rect)
+        arrow = ArrowItem(parent=self.exe_bounding_rect, headLen=spacing, tailLen=spacing, angle=270)
+        arrow.setPos(e1_middle_x+3*(width+spacing) - offset, offset)
+        arrow.setPen(self.pen_arrow_rs2)
+        arrow.setBrush(self.brush_arrow_head_rs2)
+        line1 = QGraphicsLineItem( e1_middle_x+4*(width+spacing) + offset,   offset, e1_middle_x+4*(width+spacing) + offset, -spacing-offset, parent=self.exe_bounding_rect)
+        line2 = QGraphicsLineItem( e1_middle_x+4*(width+spacing) + offset, -spacing-offset, e1_middle_x+3*(width+spacing) - offset, -spacing-offset, parent=self.exe_bounding_rect)
+        line1.setPen(self.pen_line_rs2)
+        line2.setPen(self.pen_line_rs2)
+        self.I0_E4_RS2_From_i0_WB.addToGroup(line1)
+        self.I0_E4_RS2_From_i0_WB.addToGroup(line2)
+        self.I0_E4_RS2_From_i0_WB.addToGroup(arrow)
+        
+        # i0 WB -> i1 E3 RS1
+        self.I1_E3_RS1_From_i0_WB = QGraphicsItemGroup(parent=self.exe_bounding_rect)
+        arrow = ArrowItem(parent=self.exe_bounding_rect, headLen=spacing, tailLen=offset, angle=270)
+        arrow.setPos(e1_middle_x+2*(width+spacing)-offset, offset+height+2*spacing)
+        arrow.setPen(self.pen_arrow_rs1)
+        arrow.setBrush(self.brush_arrow_head_rs1)
+        line1 = QGraphicsLineItem( e1_middle_x+4*(width+spacing) - offset,   offset+height, e1_middle_x+4*(width+spacing) - offset, 2*offset+height, parent=self.exe_bounding_rect)
+        line2 = QGraphicsLineItem( e1_middle_x+4*(width+spacing) - offset, 2*offset+height, e1_middle_x+2*(width+spacing) - offset, 2*offset+height, parent=self.exe_bounding_rect)
+        line1.setPen(self.pen_line_rs1)
+        line2.setPen(self.pen_line_rs1)
+        self.I1_E3_RS1_From_i0_WB.addToGroup(line1)
+        self.I1_E3_RS1_From_i0_WB.addToGroup(line2)
+        self.I1_E3_RS1_From_i0_WB.addToGroup(arrow)
+        
+        # i0 WB -> i1 E3 RS2
+        self.I1_E3_RS2_From_i0_WB = QGraphicsItemGroup(parent=self.exe_bounding_rect)
+        arrow = ArrowItem(parent=self.exe_bounding_rect, headLen=spacing, tailLen=offset/2, angle=270)
+        arrow.setPos(e1_middle_x+2*(width+spacing)+offset, offset+height+2*spacing)
+        arrow.setPen(self.pen_arrow_rs2)
+        arrow.setBrush(self.brush_arrow_head_rs2)
+        line1 = QGraphicsLineItem( e1_middle_x+4*(width+spacing) + offset,   offset+height, e1_middle_x+4*(width+spacing) + offset, 2.5*offset+height, parent=self.exe_bounding_rect)
+        line2 = QGraphicsLineItem( e1_middle_x+4*(width+spacing) + offset, 2.5*offset+height, e1_middle_x+2*(width+spacing) + offset, 2.5*offset+height, parent=self.exe_bounding_rect)
+        line1.setPen(self.pen_line_rs2)
+        line2.setPen(self.pen_line_rs2)
+        self.I1_E3_RS2_From_i0_WB.addToGroup(line1)
+        self.I1_E3_RS2_From_i0_WB.addToGroup(line2)
+        self.I1_E3_RS2_From_i0_WB.addToGroup(arrow)
+        
+        # i0 WB -> i1 E4 RS1
+        self.I1_E4_RS1_From_i0_WB = QGraphicsItemGroup(parent=self.exe_bounding_rect)
+        arrow = ArrowItem(parent=self.exe_bounding_rect, headLen=spacing, tailLen=offset, angle=270)
+        arrow.setPos(e1_middle_x+3*(width+spacing)-offset, offset+height+2*spacing)
+        arrow.setPen(self.pen_arrow_rs1)
+        arrow.setBrush(self.brush_arrow_head_rs1)
+        line1 = QGraphicsLineItem( e1_middle_x+4*(width+spacing) - offset,   offset+height, e1_middle_x+4*(width+spacing) - offset, 2*offset+height, parent=self.exe_bounding_rect)
+        line2 = QGraphicsLineItem( e1_middle_x+4*(width+spacing) - offset, 2*offset+height, e1_middle_x+3*(width+spacing) - offset, 2*offset+height, parent=self.exe_bounding_rect)
+        line1.setPen(self.pen_line_rs1)
+        line2.setPen(self.pen_line_rs1)
+        self.I1_E4_RS1_From_i0_WB.addToGroup(line1)
+        self.I1_E4_RS1_From_i0_WB.addToGroup(line2)
+        self.I1_E4_RS1_From_i0_WB.addToGroup(arrow)
+        
+        # i0 WB -> i1 E4 RS2
+        self.I1_E4_RS2_From_i0_WB = QGraphicsItemGroup(parent=self.exe_bounding_rect)
+        arrow = ArrowItem(parent=self.exe_bounding_rect, headLen=spacing, tailLen=offset/2, angle=270)
+        arrow.setPos(e1_middle_x+3*(width+spacing)+offset, offset+height+2*spacing)
+        arrow.setPen(self.pen_arrow_rs2)
+        arrow.setBrush(self.brush_arrow_head_rs2)
+        line1 = QGraphicsLineItem( e1_middle_x+4*(width+spacing) + offset,   offset+height, e1_middle_x+4*(width+spacing) + offset, 2.5*offset+height, parent=self.exe_bounding_rect)
+        line2 = QGraphicsLineItem( e1_middle_x+4*(width+spacing) + offset, 2.5*offset+height, e1_middle_x+3*(width+spacing) + offset, 2.5*offset+height, parent=self.exe_bounding_rect)
+        line1.setPen(self.pen_line_rs2)
+        line2.setPen(self.pen_line_rs2)
+        self.I1_E4_RS2_From_i0_WB.addToGroup(line1)
+        self.I1_E4_RS2_From_i0_WB.addToGroup(line2)
+        self.I1_E4_RS2_From_i0_WB.addToGroup(arrow)
+        
+        # -------------------------------------------------------------------------------------------------------------
+        # Forwarding from i1 WB
+        
+        # i1 WB -> i1 E3 RS1
+        self.I1_E3_RS1_From_i1_WB = QGraphicsItemGroup(parent=self.exe_bounding_rect)
+        arrow = ArrowItem(parent=self.exe_bounding_rect, headLen=spacing, tailLen=offset, angle=90)
+        arrow.setPos(e1_middle_x+2*(width+spacing)+offset, 2*(height+spacing+offset)-offset)
+        arrow.setPen(self.pen_arrow_rs1)
+        arrow.setBrush(self.brush_arrow_head_rs1)
+        line1 = QGraphicsLineItem( e1_middle_x+4*(width+spacing) - offset, 2*(height+spacing+offset)-offset, e1_middle_x+4*(width+spacing) - offset, 2*(height+spacing+2*offset), parent=self.exe_bounding_rect)
+        line2 = QGraphicsLineItem( e1_middle_x+4*(width+spacing) - offset,      2*(height+spacing+2*offset), e1_middle_x+2*(width+spacing) + offset, 2*(height+spacing+2*offset), parent=self.exe_bounding_rect)
+        line1.setPen(self.pen_line_rs1)
+        line2.setPen(self.pen_line_rs1)
+        self.I1_E3_RS1_From_i1_WB.addToGroup(line1)
+        self.I1_E3_RS1_From_i1_WB.addToGroup(line2)
+        self.I1_E3_RS1_From_i1_WB.addToGroup(arrow)
+        
+        # i1 WB -> i1 E3 RS2
+        self.I1_E3_RS2_From_i1_WB = QGraphicsItemGroup(parent=self.exe_bounding_rect)
+        arrow = ArrowItem(parent=self.exe_bounding_rect, headLen=spacing, tailLen=spacing, angle=90)
+        arrow.setPos(e1_middle_x+2*(width+spacing)-offset, 2*(height+spacing+offset)-offset)
+        arrow.setPen(self.pen_arrow_rs2)
+        arrow.setBrush(self.brush_arrow_head_rs2)
+        line1 = QGraphicsLineItem( e1_middle_x+4*(width+spacing) + offset,   2*(height+spacing+offset)-offset, e1_middle_x+4*(width+spacing) + offset, 2*(height+spacing+2*offset)+offset, parent=self.exe_bounding_rect)
+        line2 = QGraphicsLineItem( e1_middle_x+4*(width+spacing) + offset, 2*(height+spacing+2*offset)+offset, e1_middle_x+2*(width+spacing) - offset, 2*(height+spacing+2*offset)+offset, parent=self.exe_bounding_rect)
+        line1.setPen(self.pen_line_rs2)
+        line2.setPen(self.pen_line_rs2)
+        self.I1_E3_RS2_From_i1_WB.addToGroup(line1)
+        self.I1_E3_RS2_From_i1_WB.addToGroup(line2)
+        self.I1_E3_RS2_From_i1_WB.addToGroup(arrow)
+        
+        # i1 WB -> i1 E4 RS1
+        self.I1_E4_RS1_From_i1_WB = QGraphicsItemGroup(parent=self.exe_bounding_rect)
+        arrow = ArrowItem(parent=self.exe_bounding_rect, headLen=spacing, tailLen=offset, angle=90)
+        arrow.setPos(e1_middle_x+3*(width+spacing)+offset, 2*(height+spacing+offset)-offset)
+        arrow.setPen(self.pen_arrow_rs1)
+        arrow.setBrush(self.brush_arrow_head_rs1)
+        line1 = QGraphicsLineItem( e1_middle_x+4*(width+spacing) - offset, 2*(height+spacing+offset)-offset, e1_middle_x+4*(width+spacing) - offset, 2*(height+spacing+2*offset), parent=self.exe_bounding_rect)
+        line2 = QGraphicsLineItem( e1_middle_x+4*(width+spacing) - offset,      2*(height+spacing+2*offset), e1_middle_x+3*(width+spacing) + offset, 2*(height+spacing+2*offset), parent=self.exe_bounding_rect)
+        line1.setPen(self.pen_line_rs1)
+        line2.setPen(self.pen_line_rs1)
+        self.I1_E4_RS1_From_i1_WB.addToGroup(line1)
+        self.I1_E4_RS1_From_i1_WB.addToGroup(line2)
+        self.I1_E4_RS1_From_i1_WB.addToGroup(arrow)
+        
+        # i1 WB -> i1 E4 RS2
+        self.I1_E4_RS2_From_i1_WB = QGraphicsItemGroup(parent=self.exe_bounding_rect)
+        arrow = ArrowItem(parent=self.exe_bounding_rect, headLen=spacing, tailLen=spacing, angle=90)
+        arrow.setPos(e1_middle_x+3*(width+spacing)-offset, 2*(height+spacing+offset)-offset)
+        arrow.setPen(self.pen_arrow_rs2)
+        arrow.setBrush(self.brush_arrow_head_rs2)
+        line1 = QGraphicsLineItem( e1_middle_x+4*(width+spacing) + offset,   2*(height+spacing+offset)-offset, e1_middle_x+4*(width+spacing) + offset, 2*(height+spacing+2*offset)+offset, parent=self.exe_bounding_rect)
+        line2 = QGraphicsLineItem( e1_middle_x+4*(width+spacing) + offset, 2*(height+spacing+2*offset)+offset, e1_middle_x+3*(width+spacing) - offset, 2*(height+spacing+2*offset)+offset, parent=self.exe_bounding_rect)
+        line1.setPen(self.pen_line_rs2)
+        line2.setPen(self.pen_line_rs2)
+        self.I1_E4_RS2_From_i1_WB.addToGroup(line1)
+        self.I1_E4_RS2_From_i1_WB.addToGroup(line2)
+        self.I1_E4_RS2_From_i1_WB.addToGroup(arrow)
+        
+        # i1 WB -> i0 E3 RS1
+        self.I0_E3_RS1_From_i1_WB = QGraphicsItemGroup(parent=self.exe_bounding_rect)
+        arrow = ArrowItem(parent=self.exe_bounding_rect, headLen=spacing, tailLen=offset, angle=90)
+        arrow.setPos(e1_middle_x+2*(width+spacing)-offset, height+offset)
+        arrow.setPen(self.pen_arrow_rs1)
+        arrow.setBrush(self.brush_arrow_head_rs1)
+        line1 = QGraphicsLineItem( e1_middle_x+4*(width+spacing) - offset, offset+height+2*spacing, e1_middle_x+4*(width+spacing) - offset, height+2*spacing, parent=self.exe_bounding_rect)
+        line2 = QGraphicsLineItem( e1_middle_x+4*(width+spacing) - offset,        height+2*spacing, e1_middle_x+2*(width+spacing) - offset, height+2*spacing, parent=self.exe_bounding_rect)
+        line1.setPen(self.pen_line_rs1)
+        line2.setPen(self.pen_line_rs1)
+        self.I0_E3_RS1_From_i1_WB.addToGroup(line1)
+        self.I0_E3_RS1_From_i1_WB.addToGroup(line2)
+        self.I0_E3_RS1_From_i1_WB.addToGroup(arrow)
+        
+        # i1 WB -> i0 E3 RS2
+        self.I0_E3_RS2_From_i1_WB = QGraphicsItemGroup(parent=self.exe_bounding_rect)
+        arrow = ArrowItem(parent=self.exe_bounding_rect, headLen=spacing, tailLen=offset/2, angle=90)
+        arrow.setPos(e1_middle_x+2*(width+spacing)+offset, height+offset)
+        arrow.setPen(self.pen_arrow_rs2)
+        arrow.setBrush(self.brush_arrow_head_rs2)
+        line1 = QGraphicsLineItem( e1_middle_x+4*(width+spacing) + offset,   offset+height+2*spacing, e1_middle_x+4*(width+spacing) + offset, height+2*spacing-offset/2, parent=self.exe_bounding_rect)
+        line2 = QGraphicsLineItem( e1_middle_x+4*(width+spacing) + offset, height+2*spacing-offset/2, e1_middle_x+2*(width+spacing) + offset, height+2*spacing-offset/2, parent=self.exe_bounding_rect)
+        line1.setPen(self.pen_line_rs2)
+        line2.setPen(self.pen_line_rs2)
+        self.I0_E3_RS2_From_i1_WB.addToGroup(line1)
+        self.I0_E3_RS2_From_i1_WB.addToGroup(line2)
+        self.I0_E3_RS2_From_i1_WB.addToGroup(arrow)
+        
+        # i1 WB -> i0 E4 RS1
+        self.I0_E4_RS1_From_i1_WB = QGraphicsItemGroup(parent=self.exe_bounding_rect)
+        arrow = ArrowItem(parent=self.exe_bounding_rect, headLen=spacing, tailLen=offset, angle=90)
+        arrow.setPos(e1_middle_x+3*(width+spacing)-offset, height+offset)
+        arrow.setPen(self.pen_arrow_rs1)
+        arrow.setBrush(self.brush_arrow_head_rs1)
+        line1 = QGraphicsLineItem( e1_middle_x+4*(width+spacing) - offset, offset+height+2*spacing, e1_middle_x+4*(width+spacing) - offset, height+2*spacing, parent=self.exe_bounding_rect)
+        line2 = QGraphicsLineItem( e1_middle_x+4*(width+spacing) - offset,        height+2*spacing, e1_middle_x+3*(width+spacing) - offset, height+2*spacing, parent=self.exe_bounding_rect)
+        line1.setPen(self.pen_line_rs1)
+        line2.setPen(self.pen_line_rs1)
+        self.I0_E4_RS1_From_i1_WB.addToGroup(line1)
+        self.I0_E4_RS1_From_i1_WB.addToGroup(line2)
+        self.I0_E4_RS1_From_i1_WB.addToGroup(arrow)
+        
+        # i1 WB -> i0 E4 RS2
+        self.I0_E4_RS2_From_i1_WB = QGraphicsItemGroup(parent=self.exe_bounding_rect)
+        arrow = ArrowItem(parent=self.exe_bounding_rect, headLen=spacing, tailLen=offset/2, angle=90)
+        arrow.setPos(e1_middle_x+3*(width+spacing)+offset, height+offset)
+        arrow.setPen(self.pen_arrow_rs2)
+        arrow.setBrush(self.brush_arrow_head_rs2)
+        line1 = QGraphicsLineItem( e1_middle_x+4*(width+spacing) + offset,   offset+height+2*spacing, e1_middle_x+4*(width+spacing) + offset, height+2*spacing-offset/2, parent=self.exe_bounding_rect)
+        line2 = QGraphicsLineItem( e1_middle_x+4*(width+spacing) + offset, height+2*spacing-offset/2, e1_middle_x+3*(width+spacing) + offset, height+2*spacing-offset/2, parent=self.exe_bounding_rect)
+        line1.setPen(self.pen_line_rs2)
+        line2.setPen(self.pen_line_rs2)
+        self.I0_E4_RS2_From_i1_WB.addToGroup(line1)
+        self.I0_E4_RS2_From_i1_WB.addToGroup(line2)
+        self.I0_E4_RS2_From_i1_WB.addToGroup(arrow)
+        
+        # -------------------------------------------------------------------------------------------------------------
+        # Forwarding from i0 E4
+        # i0 E4 -> i0 E4 RS1
+        self.I0_E4_RS1_From_i0_E4 = QGraphicsItemGroup(parent=self.exe_bounding_rect)
+        arrow = ArrowItem(parent=self.exe_bounding_rect, headLen=spacing, tailLen=offset, angle=270)
+        arrow.setPos(e1_middle_x+3*(width+spacing)-offset, offset)
+        arrow.setPen(self.pen_arrow_rs1)
+        arrow.setBrush(self.brush_arrow_head_rs1)
+        line1 = QGraphicsLineItem( e1_middle_x+3*(width+spacing) + offset,   offset, e1_middle_x+3*(width+spacing) + offset, -spacing, parent=self.exe_bounding_rect)
+        line2 = QGraphicsLineItem( e1_middle_x+3*(width+spacing) + offset, -spacing, e1_middle_x+3*(width+spacing) - offset, -spacing, parent=self.exe_bounding_rect)
+        line1.setPen(self.pen_line_rs1)
+        line2.setPen(self.pen_line_rs1)
+        self.I0_E4_RS1_From_i0_E4.addToGroup(line1)
+        self.I0_E4_RS1_From_i0_E4.addToGroup(line2)
+        self.I0_E4_RS1_From_i0_E4.addToGroup(arrow)
+        
+        # i0 E4 -> i0 E4 RS2
+        self.I0_E4_RS2_From_i0_E4 = QGraphicsItemGroup(parent=self.exe_bounding_rect)
+        arrow = ArrowItem(parent=self.exe_bounding_rect, headLen=spacing, tailLen=spacing, angle=270)
+        arrow.setPos(e1_middle_x+3*(width+spacing)-2*offset, offset)
+        arrow.setPen(self.pen_arrow_rs2)
+        arrow.setBrush(self.brush_arrow_head_rs2)
+        line1 = QGraphicsLineItem( e1_middle_x+3*(width+spacing) + 2*offset,          offset, e1_middle_x+3*(width+spacing) + 2*offset, -spacing-offset, parent=self.exe_bounding_rect)
+        line2 = QGraphicsLineItem( e1_middle_x+3*(width+spacing) + 2*offset, -spacing-offset, e1_middle_x+3*(width+spacing) - 2*offset, -spacing-offset, parent=self.exe_bounding_rect)
+        line1.setPen(self.pen_line_rs2)
+        line2.setPen(self.pen_line_rs2)
+        self.I0_E4_RS2_From_i0_E4.addToGroup(line1)
+        self.I0_E4_RS2_From_i0_E4.addToGroup(line2)
+        self.I0_E4_RS2_From_i0_E4.addToGroup(arrow)
+        
+        # i0 E4 -> i1 E4 RS1
+        self.I1_E4_RS1_From_i0_E4 = ArrowItem(parent=self.exe_bounding_rect, headLen=spacing, tailLen=spacing, angle=270)
+        self.I1_E4_RS1_From_i0_E4.setPos(e1_middle_x+3*(width+spacing)-offset, height+offset+2*spacing)
+        self.I1_E4_RS1_From_i0_E4.setPen(self.pen_arrow_rs1)
+        self.I1_E4_RS1_From_i0_E4.setBrush(self.brush_arrow_head_rs1)
+        
+        # i0 E4 -> i1 E4 RS2
+        self.I1_E4_RS2_From_i0_E4 = ArrowItem(parent=self.exe_bounding_rect, headLen=spacing, tailLen=spacing, angle=270)
+        self.I1_E4_RS2_From_i0_E4.setPos(e1_middle_x+3*(width+spacing)+offset, height+offset+2*spacing)
+        self.I1_E4_RS2_From_i0_E4.setPen(self.pen_arrow_rs2)
+        self.I1_E4_RS2_From_i0_E4.setBrush(self.brush_arrow_head_rs2)
+        
+        # -------------------------------------------------------------------------------------------------------------
+        # Forwarding from i1 E4
+        # i1 E4 -> i1 E4 RS1
+        self.I1_E4_RS1_From_i1_E4 = QGraphicsItemGroup(parent=self.exe_bounding_rect)
+        arrow = ArrowItem(parent=self.exe_bounding_rect, headLen=spacing, tailLen=offset, angle=90)
+        arrow.setPos(e1_middle_x+3*(width+spacing)-offset, 2*(height+spacing+offset)-offset)
+        arrow.setPen(self.pen_arrow_rs1)
+        arrow.setBrush(self.brush_arrow_head_rs1)
+        line1 = QGraphicsLineItem( e1_middle_x+3*(width+spacing) + offset, 2*(height+spacing)+offset, e1_middle_x+3*(width+spacing) + offset, 2*(height+spacing+offset)+spacing, parent=self.exe_bounding_rect)
+        line2 = QGraphicsLineItem( e1_middle_x+3*(width+spacing) + offset, 2*(height+spacing+offset)+spacing, e1_middle_x+3*(width+spacing) - offset, 2*(height+spacing+offset)+spacing, parent=self.exe_bounding_rect)
+        line1.setPen(self.pen_line_rs1)
+        line2.setPen(self.pen_line_rs1)
+        self.I1_E4_RS1_From_i1_E4.addToGroup(line1)
+        self.I1_E4_RS1_From_i1_E4.addToGroup(line2)
+        self.I1_E4_RS1_From_i1_E4.addToGroup(arrow)
+        
+        # i1 E4 -> i1 E4 RS2
+        self.I1_E4_RS2_From_i1_E4 = QGraphicsItemGroup(parent=self.exe_bounding_rect)
+        arrow = ArrowItem(parent=self.exe_bounding_rect, headLen=spacing, tailLen=spacing, angle=90)
+        arrow.setPos(e1_middle_x+3*(width+spacing)-2*offset, 2*(height+spacing+offset)-offset)
+        arrow.setPen(self.pen_arrow_rs2)
+        arrow.setBrush(self.brush_arrow_head_rs2)
+        line1 = QGraphicsLineItem( e1_middle_x+3*(width+spacing) + 2*offset,         2*(height+spacing)+offset, e1_middle_x+3*(width+spacing) + 2*offset, 2*(height+spacing+offset)+spacing+offset, parent=self.exe_bounding_rect)
+        line2 = QGraphicsLineItem( e1_middle_x+3*(width+spacing) + 2*offset, 2*(height+spacing+offset)+spacing+offset, e1_middle_x+3*(width+spacing) - 2*offset, 2*(height+spacing+offset)+spacing+offset, parent=self.exe_bounding_rect)
+        line1.setPen(self.pen_line_rs2)
+        line2.setPen(self.pen_line_rs2)
+        self.I1_E4_RS2_From_i1_E4.addToGroup(line1)
+        self.I1_E4_RS2_From_i1_E4.addToGroup(line2)
+        self.I1_E4_RS2_From_i1_E4.addToGroup(arrow)
+        
+        # i1 E4 -> i0 E4 RS1
+        self.I0_E4_RS1_From_i1_E4 = ArrowItem(parent=self.exe_bounding_rect, headLen=spacing, tailLen=spacing, angle=90)
+        self.I0_E4_RS1_From_i1_E4.setPos(e1_middle_x+3*(width+spacing)+offset, height+offset)
+        self.I0_E4_RS1_From_i1_E4.setPen(self.pen_arrow_rs1)
+        self.I0_E4_RS1_From_i1_E4.setBrush(self.brush_arrow_head_rs1)
+        
+        # i1 E4 -> i0 E4 RS2
+        self.I0_E4_RS2_From_i1_E4 = ArrowItem(parent=self.exe_bounding_rect, headLen=spacing, tailLen=spacing, angle=90)
+        self.I0_E4_RS2_From_i1_E4.setPos(e1_middle_x+3*(width+spacing)-offset, height+offset)
+        self.I0_E4_RS2_From_i1_E4.setPen(self.pen_arrow_rs2)
+        self.I0_E4_RS2_From_i1_E4.setBrush(self.brush_arrow_head_rs2)
+        
+        # hide all by default
+
     # adding all objects to the scene without positioning (Order matters! newest object has biggest z val)
     def _addObjectsToScene(self):
         
@@ -724,16 +1112,22 @@ class SweRVisual(QMainWindow):
 
     # update all object colors, text etc.
     def _updateView(self, values, instructions):
+        self._hideAllArrows()
 
         # paint valid instructions green and invalid ones red
         for i in range(4):
             self.IB_valid_box[i].setBrush(self.brush_stage_valid) if ((int(values["ibval"], 2) >> i) & 1) else self.IB_valid_box[i].setBrush(self.brush_stage_invalid)
             self.IB_copy_box[i].setBrush(self.brush_copy) if (int(values["ic{}".format(i)])) else self.IB_copy_box[i].setBrush(self.brush_neutral)
+            #print("{} {}".format(values["i0_wen_shifted"], values["i1_wen_shifted"]))
+            if ((int(values["i0_wen_shifted"], 2) >> i) & 1):       self.ib_write_arrows_i0[i].show()
+            if ((int(values["i1_wen_shifted"] + "0", 2) >> i) & 1): self.ib_write_arrows_i1[i].show()
 
         # valid stages are green, invalid stages are red
         for i in range(5):
             self.I0_stages[i].setBrush(self.brush_stage_valid) if (int(values["e{}d.i0valid".format(i+1)])) else self.I0_stages[i].setBrush(self.brush_stage_invalid)
             self.I1_stages[i].setBrush(self.brush_stage_valid_i1) if (int(values["e{}d.i1valid".format(i+1)])) else self.I1_stages[i].setBrush(self.brush_stage_invalid)
+            self.I0_copy[i].setBrush(self.brush_copy) if (int(values["i0_e{}_copy".format(i+1)]) and int(values["e{}d.i0valid".format(i+1)])) else self.I0_copy[i].setBrush(self.brush_neutral)
+            self.I1_copy[i].setBrush(self.brush_copy) if (int(values["i1_e{}_copy".format(i+1)]) and int(values["e{}d.i1valid".format(i+1)])) else self.I1_copy[i].setBrush(self.brush_neutral)
 
         # stalling lines
         self.stall_i0.hide()
@@ -757,13 +1151,13 @@ class SweRVisual(QMainWindow):
         # set instruction and PC in IB
         self.IB_PC_text[0].setText("PC: "+ "{:08X}".format(int(values["dec_i0_pc_d"]+"0", 2)))
         self.IB_PC_text[1].setText("PC: "+ "{:08X}".format(int(values["dec_i1_pc_d"]+"0", 2)))
-        self.IB_PC_text[2].setText("PC: "+ "{:08X}".format(int(values["pc2"]+"0", 2)))
-        self.IB_PC_text[3].setText("PC: "+ "{:08X}".format(int(values["pc3"]+"0", 2)))
+        self.IB_PC_text[2].setText("PC: "+ "{:08X}".format(int(values["pc2"][:-1]+"0", 2)))
+        self.IB_PC_text[3].setText("PC: "+ "{:08X}".format(int(values["pc3"][:-1]+"0", 2)))
         
         self.IB_instr_text[0].setText(self._truncateInstructionText(assembly._getInstruction("{:08x}".format(int(values["dec_i0_pc_d"]+"0", 2))), 25))
         self.IB_instr_text[1].setText(self._truncateInstructionText(assembly._getInstruction("{:08x}".format(int(values["dec_i1_pc_d"]+"0", 2))), 25))
-        self.IB_instr_text[2].setText(self._truncateInstructionText(assembly._getInstruction("{:08x}".format(int(values["pc2"]+"0", 2))), 25))
-        self.IB_instr_text[3].setText(self._truncateInstructionText(assembly._getInstruction("{:08x}".format(int(values["pc3"]+"0", 2))), 25))
+        self.IB_instr_text[2].setText(self._truncateInstructionText(assembly._getInstruction("{:08x}".format(int(values["pc2"][:-1]+"0", 2))), 25))
+        self.IB_instr_text[3].setText(self._truncateInstructionText(assembly._getInstruction("{:08x}".format(int(values["pc3"][:-1]+"0", 2))), 25))
 
         # set class text of all stages
 
@@ -772,17 +1166,12 @@ class SweRVisual(QMainWindow):
             self.I1_class_text[i].setText(self._getStageClassText(values, "e{}".format(i+1), "i1"))
             self.I0_info_text[i].setText("Instr: {}\nPC: {:08X}\nRD: x{}".format(assembly._getInstruction("{:08x}".format(int(values["i0_pc_e{}".format(i+1)]+"0", 2))).split(' ')[0], int(values["i0_pc_e{}".format(i+1)]+"0", 2), int(values["e{}_i0_rd".format(i+1)], 2)))
             self.I1_info_text[i].setText("Instr: {}\nPC: {:08X}\nRD: x{}".format(assembly._getInstruction("{:08x}".format(int(values["i1_pc_e{}".format(i+1)]+"0", 2))).split(' ')[0], int(values["i1_pc_e{}".format(i+1)]+"0", 2), int(values["e{}_i1_rd".format(i+1)], 2)))
-            self.I0_copy_text[i].hide()
-            self.I0_copy[i].setBrush(self.brush_copy) if (int(values["i0_e{}_copy".format(i+1)])) else self.I0_copy[i].setBrush(self.brush_neutral)
-            self.I1_copy_text[i].hide()
-            self.I1_copy[i].setBrush(self.brush_copy) if (int(values["i1_e{}_copy".format(i+1)])) else self.I1_copy[i].setBrush(self.brush_neutral)
 
         self.nonblock_load_commit.hide()
         if (int(values["nonblock_load_wen"])): self.nonblock_load_commit.show()
 
         self.CSRs["faultless"].setBrush(self.brush_copy) if (int(values["faultless"])) else self.CSRs["faultless"].setBrush(self.brush_neutral)
 
-        self._hideAllArrows()
         if (int(values["dec_i0_decode_d"])): self._toggleArrowVisibilityI0_RS1(int(values["i0_rs1bypass"], 2))
         if (int(values["dec_i0_decode_d"])): self._toggleArrowVisibilityI0_RS2(int(values["i0_rs2bypass"], 2))
         if (int(values["dec_i1_decode_d"])): self._toggleArrowVisibilityI1_RS1(int(values["i1_rs1bypass"], 2))
@@ -793,6 +1182,38 @@ class SweRVisual(QMainWindow):
             self.regs_text[i].setText("0x{:08X}".format(int(values["x{}".format(i)], 2)))
 
         self._colorRegs(values)
+
+        if ((int(values["e2d.i0rs1bype2"], 2) >> 1) & 0x1): self.I0_E3_RS1_From_i1_WB.show()
+        if ((int(values["e2d.i0rs1bype2"], 2) >> 0) & 0x1): self.I0_E3_RS1_From_i0_WB.show()
+        
+        if ((int(values["e2d.i0rs2bype2"], 2) >> 1) & 0x1): self.I0_E3_RS2_From_i1_WB.show()
+        if ((int(values["e2d.i0rs2bype2"], 2) >> 0) & 0x1): self.I0_E3_RS2_From_i0_WB.show()
+        
+        if ((int(values["e2d.i1rs1bype2"], 2) >> 1) & 0x1): self.I1_E3_RS1_From_i1_WB.show()
+        if ((int(values["e2d.i1rs1bype2"], 2) >> 0) & 0x1): self.I1_E3_RS1_From_i0_WB.show()
+        
+        if ((int(values["e2d.i1rs2bype2"], 2) >> 1) & 0x1): self.I1_E3_RS2_From_i1_WB.show()
+        if ((int(values["e2d.i1rs2bype2"], 2) >> 0) & 0x1): self.I1_E3_RS2_From_i0_WB.show()
+        
+        if ((int(values["e3d.i0rs1bype3"], 2) >> 3) & 0x1): self.I0_E4_RS1_From_i1_E4.show()
+        if ((int(values["e3d.i0rs1bype3"], 2) >> 2) & 0x1): self.I0_E4_RS1_From_i0_E4.show()
+        if ((int(values["e3d.i0rs1bype3"], 2) >> 1) & 0x1): self.I0_E4_RS1_From_i1_WB.show()
+        if ((int(values["e3d.i0rs1bype3"], 2) >> 0) & 0x1): self.I0_E4_RS1_From_i0_WB.show()
+        
+        if ((int(values["e3d.i0rs2bype3"], 2) >> 3) & 0x1): self.I0_E4_RS2_From_i1_E4.show()
+        if ((int(values["e3d.i0rs2bype3"], 2) >> 2) & 0x1): self.I0_E4_RS2_From_i0_E4.show()
+        if ((int(values["e3d.i0rs2bype3"], 2) >> 1) & 0x1): self.I0_E4_RS2_From_i1_WB.show()
+        if ((int(values["e3d.i0rs2bype3"], 2) >> 0) & 0x1): self.I0_E4_RS2_From_i0_WB.show()
+        
+        if ((int(values["e3d.i1rs1bype3"], 2) >> 3) & 0x1): self.I1_E4_RS1_From_i1_E4.show()
+        if ((int(values["e3d.i1rs1bype3"], 2) >> 2) & 0x1): self.I1_E4_RS1_From_i0_E4.show()
+        if ((int(values["e3d.i1rs1bype3"], 2) >> 1) & 0x1): self.I1_E4_RS1_From_i1_WB.show()
+        if ((int(values["e3d.i1rs1bype3"], 2) >> 0) & 0x1): self.I1_E4_RS1_From_i0_WB.show()
+        
+        if ((int(values["e3d.i1rs2bype3"], 2) >> 3) & 0x1): self.I1_E4_RS2_From_i1_E4.show()
+        if ((int(values["e3d.i1rs2bype3"], 2) >> 2) & 0x1): self.I1_E4_RS2_From_i0_E4.show()
+        if ((int(values["e3d.i1rs2bype3"], 2) >> 1) & 0x1): self.I1_E4_RS2_From_i1_WB.show()
+        if ((int(values["e3d.i1rs2bype3"], 2) >> 0) & 0x1): self.I1_E4_RS2_From_i0_WB.show()
 
         #self.bypassdebugI0RS1.setText(values["i0_rs1bypass"])
         #self.bypassdebugI0RS2.setText(values["i0_rs2bypass"])
@@ -884,6 +1305,8 @@ class SweRVisualCtrl():
             "ic1"         : SWERV_DEC_IB + "ic1",
             "ic2"         : SWERV_DEC_IB + "ic2",
             "ic3"         : SWERV_DEC_IB + "ic3",
+            "i0_wen_shifted" : SWERV_DEC_IB + "i0_wen_shifted[3:0]",
+            "i1_wen_shifted" : SWERV_DEC_IB + "i1_wen_shifted[3:1]",
 
             # GPRs
             "i0_rs1_en_d" : SWERV_DEC_DECODE + "dec_i0_rs1_en_d", 
@@ -989,6 +1412,16 @@ class SweRVisualCtrl():
             "load_mul_rs2_bypass_e1" : SWERV_DEC_DECODE + "load_mul_rs2_bypass_e1",
             "i0_wen_wb" : SWERV_DEC_DECODE + "i0_wen_wb",
             "i1_wen_wb" : SWERV_DEC_DECODE + "i1_wen_wb",
+
+            "e2d.i0rs1bype2" : SWERV_DEC_DECODE + "e2d.i0rs1bype2[1:0]", 
+            "e2d.i0rs2bype2" : SWERV_DEC_DECODE + "e2d.i0rs2bype2[1:0]", 
+            "e2d.i1rs1bype2" : SWERV_DEC_DECODE + "e2d.i1rs1bype2[1:0]", 
+            "e2d.i1rs2bype2" : SWERV_DEC_DECODE + "e2d.i1rs2bype2[1:0]", 
+            
+            "e3d.i0rs1bype3" : SWERV_DEC_DECODE + "e3d.i0rs1bype3[3:0]", 
+            "e3d.i0rs2bype3" : SWERV_DEC_DECODE + "e3d.i0rs2bype3[3:0]", 
+            "e3d.i1rs1bype3" : SWERV_DEC_DECODE + "e3d.i1rs1bype3[6:0]", 
+            "e3d.i1rs2bype3" : SWERV_DEC_DECODE + "e3d.i1rs2bype3[6:0]", 
 
             "i0_inst_e1" : SWERV_DEC_DECODE + "i0_inst_e1[31:0]",
             "i0_inst_e2" : SWERV_DEC_DECODE + "i0_inst_e2[31:0]",
@@ -1202,7 +1635,8 @@ class DisassemblyHandler():
                 pc = re.sub("\s|:", "", re.match("\s*[0-9a-fA-F]+:", line).group())
                 pc = (8-len(pc))*'0' + pc #padding
                 #insn = re.sub("\s", "", re.search("\s*[0-9a-fA-F]{8}\s+", line).group())
-                text = re.sub("\s+", " ", re.sub("^\s+", "", re.search("\s+[a-zA-Z]+\s+.*", line).group()))
+                print(line)
+                text = re.sub("\s+", " ", re.sub("^\s+", "", re.search("\s+[a-zA-Z.]+\s+.*", line).group()))
                 instructions[pc] = text
         fd.close()
         return instructions
