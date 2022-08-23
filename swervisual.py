@@ -16,6 +16,7 @@ from PyQt5.QtWidgets import (
     QGraphicsView, 
     QVBoxLayout, 
     QProgressBar, 
+    QSlider,
     QHBoxLayout, 
     QShortcut, 
     QGraphicsRectItem, 
@@ -1224,7 +1225,7 @@ class SweRVisual(QMainWindow):
         layout = QHBoxLayout()
         self.cyclelabel = QLabel("Current cycle: ")
         self.generalLayout.addWidget(self.cyclelabel)
-        self.progressbar = QProgressBar()
+        self.progressbar = QSlider(Qt.Horizontal)#QProgressBar()
         self.generalLayout.addWidget(self.progressbar)
         layout.addWidget(self.cyclelabel)
         layout.addWidget(self.progressbar)
@@ -1244,6 +1245,7 @@ class SweRVisual(QMainWindow):
     def _createGraphicsView(self):
         self.scene = QGraphicsScene()
         self.graphicsview = QGraphicsView(self.scene)
+        self.graphicsview.setStyleSheet("background-color: white;")
         self.generalLayout.addWidget(self.graphicsview)
     
     def setCycleLabel(self, cycle):
@@ -1256,6 +1258,8 @@ class SweRVisualCtrl():
         self._vcdhandler = vcdhandler
         self._disas_handler = disas_handler
         self._view.setCycleLabel(0)
+        self._view.progressbar.setMinimum(0)
+        self._view.progressbar.setMaximum(self._vcdhandler.final_time)
         self.connectSignals()
         
         # arrow key controls
@@ -1268,7 +1272,7 @@ class SweRVisualCtrl():
         else:
             self._vcdhandler.cycle = self._vcdhandler.cycle - self._vcdhandler.step_size
         self._view.setCycleLabel(self._vcdhandler.cycle)
-        self._view.progressbar.setValue(int(100 * (self._vcdhandler.cycle / self._vcdhandler.final_time)))
+        self._view.progressbar.setValue(self._vcdhandler.cycle)
         self.updateView()
 
     def rightbtn_click(self):
@@ -1277,12 +1281,24 @@ class SweRVisualCtrl():
         else:
             self._vcdhandler.cycle = self._vcdhandler.cycle + self._vcdhandler.step_size
         self._view.setCycleLabel(self._vcdhandler.cycle)
-        self._view.progressbar.setValue(int(100 * (self._vcdhandler.cycle / self._vcdhandler.final_time)))
+        self._view.progressbar.setValue(self._vcdhandler.cycle)
+        self.updateView()
+
+    def slider_valuechanged(self):
+        slider_val = self._view.progressbar.value()
+        #new_cycle = int((self._vcdhandler.final_time * slider_val) / 100)
+        new_cycle = slider_val
+        while ((new_cycle % 10) != 5):
+            new_cycle -= 1
+        print(new_cycle)
+        self._vcdhandler.cycle = new_cycle
+        self._view.setCycleLabel(self._vcdhandler.cycle)
         self.updateView()
 
     def connectSignals(self):
         self._view.leftbtn.clicked.connect(self.leftbtn_click)
         self._view.rightbtn.clicked.connect(self.rightbtn_click)
+        self._view.progressbar.valueChanged.connect(self.slider_valuechanged)
 
     # get correct data from VCD file
     def updateView(self):
