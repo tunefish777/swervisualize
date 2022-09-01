@@ -996,6 +996,9 @@ class SweRVisual(QMainWindow):
         self.bypassdebugI1RS1 = QGraphicsSimpleTextItem("", parent=self.IB_bounding_rect)
         self.bypassdebugI1RS2 = QGraphicsSimpleTextItem("", parent=self.IB_bounding_rect)
 
+        self.roomdebug1 = QGraphicsSimpleTextItem("", parent=self.IB_bounding_rect)
+        self.roomdebug2 = QGraphicsSimpleTextItem("", parent=self.IB_bounding_rect)
+
         self.IB_valid_box = []
         self.IB_PC_box = []
         self.IB_instr_box = []
@@ -1130,6 +1133,9 @@ class SweRVisual(QMainWindow):
         self.bypassdebugI1RS1.setPos(0, -40)
         self.bypassdebugI1RS2.setPos(0, -20)
 
+        self.roomdebug1.setPos(0, 120)
+        self.roomdebug2.setPos(0, 150)
+
         # pipeline relative to parent
         self.flushable_stages.setPos(2*offset+3*width+2*spacing, 0)
         #self.flush_lower.setPos(offset+width+spacing, 2*width+3*spacing)
@@ -1262,7 +1268,7 @@ class SweRVisual(QMainWindow):
                         self.regs[i].setBrush(self.brush_gpr_rs1)
                         self.I0_RS1_GPR.show()
                 # I0 RS2
-                elif not int(values["i0_rs2_bypass_en"]) and int(values["i0_rs2_en_d"]):
+                if not int(values["i0_rs2_bypass_en"]) and int(values["i0_rs2_en_d"]):
                     if (int(values["i0_rs2"], 2) == i):
                         self.regs[i].setBrush(self.brush_gpr_rs2)
                         self.I0_RS2_GPR.show()
@@ -1273,7 +1279,7 @@ class SweRVisual(QMainWindow):
                         self.regs[i].setBrush(self.brush_gpr_rs1)
                         self.I1_RS1_GPR.show()
                 # I1 RS2
-                elif not int(values["i1_rs2_bypass_en"]) and int(values["i1_rs2_en_d"]):
+                if not int(values["i1_rs2_bypass_en"]) and int(values["i1_rs2_en_d"]):
                     if (int(values["i1_rs2"], 2) == i):
                         self.regs[i].setBrush(self.brush_gpr_rs2)
                         self.I1_RS2_GPR.show()
@@ -1282,7 +1288,7 @@ class SweRVisual(QMainWindow):
                 if (int(values["i0_wen_wb"]) and int(values["e5_i0_rd"], 2) == i):
                     self.regs[i].setBrush(self.brush_stage_valid)
                     self.I0_WB_GPR.show()
-                elif (int(values["i1_wen_wb"]) and int(values["e5_i1_rd"], 2) == i):
+                if (int(values["i1_wen_wb"]) and int(values["e5_i1_rd"], 2) == i):
                     self.regs[i].setBrush(self.brush_stage_valid_i1)
                     self.I1_WB_GPR.show()
 
@@ -1295,6 +1301,9 @@ class SweRVisual(QMainWindow):
     # update all object colors, text etc.
     def _updateView(self, values, instructions):
         self._hideAllArrows()
+
+        self.roomdebug1.setText("IFU i0 PC: {:08X}".format(int(values["ifu_i0_pc"] + "0", 2)))
+        self.roomdebug2.setText("IFU i1 PC: {:08X}".format(int(values["ifu_i1_pc"] + "0", 2)))
 
         # paint valid instructions green and invalid ones red
         for i in range(4):
@@ -1500,8 +1509,15 @@ class SweRVisualCtrl():
 
     # get correct data from VCD file
     def updateView(self):
-        # signals we want to parse from the VCD file
-        signals = {
+        self._view._updateView(self._vcdhandler.getValueDict(), self._disas_handler)
+
+# ===[ VCD Handler Class ]=================================
+class VCDHandler():
+    def __init__(self, file):
+        self.step_size = 10
+        self.cycle = 5
+        self.signals = {
+            "clk"         : SWERV_TOP + "clk",
             #IB
             "ib0"         : SWERV_DEC_IB + "ib0[31:0]",
             "ib1"         : SWERV_DEC_IB + "ib1[31:0]",
@@ -1521,6 +1537,10 @@ class SweRVisualCtrl():
             "ic3"         : SWERV_DEC_IB + "ic3",
             "i0_wen_shifted" : SWERV_DEC_IB + "i0_wen_shifted[3:0]",
             "i1_wen_shifted" : SWERV_DEC_IB + "i1_wen_shifted[3:1]",
+
+            #IFU
+            "ifu_i0_pc" : SWERV_TOP + "ifu.aln.ifu_i0_pc[31:1]",
+            "ifu_i1_pc" : SWERV_TOP + "ifu.aln.ifu_i1_pc[31:1]",
 
             # GPRs
             "i0_rs1_en_d" : SWERV_DEC_DECODE + "dec_i0_rs1_en_d", 
@@ -1838,23 +1858,21 @@ class SweRVisualCtrl():
             # TLU
             "faultless"     : SWERV_TLU + "faultless[1:0]",
         }
-        values = {}
-        for key in signals:
-            values[key] = self._vcdhandler.getSignalValue(signals[key], self._vcdhandler.cycle)
-
-        self._view._updateView(values, self._disas_handler)
-
-# ===[ VCD Handler Class ]=================================
-class VCDHandler():
-    def __init__(self, file):
-        self.step_size = 10
-        self.cycle = 5
-        self.vcd_file = VCDVCD(file)
+        self.vcd_file = VCDVCD(file, signals=list(self.signals.values()))
         self.clk_signal = self.vcd_file[SWERV_TOP + "clk"]
         self.final_time = self.clk_signal.tv[-1][0]
 
     def getSignalValue(self, signal_name, time):
         return self.vcd_file[signal_name][time]
+
+    def getSignals(self):
+        return self.signals
+
+    def getValueDict(self):
+        values = {}
+        for key in self.signals:
+            values[key] = self.getSignalValue(self.signals[key], self.cycle)
+        return values
 
 # ===[ Disassembly parser ]================================
 class DisassemblyHandler():
