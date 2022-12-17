@@ -1082,6 +1082,10 @@ class SweRVisual(QMainWindow):
             self.MUL_stages.append(QGraphicsRectItem(0, 0, width, spacing, parent=self.exe_bounding_rect))
             self.MUL_text.append(QGraphicsSimpleTextItem("M{}".format(i+1), parent=self.MUL_stages[i]))
 
+        # output buffer
+        self.i0_wb_buffer = QGraphicsRectItem(0, 0, width/4, height/4, parent=self.exe_bounding_rect)
+        self.i1_wb_buffer = QGraphicsRectItem(0, 0, width/4, height/4, parent=self.exe_bounding_rect)
+
         # regfile
         regwidth = 110
         regnamewidth = 30
@@ -1150,6 +1154,8 @@ class SweRVisual(QMainWindow):
             self.I0_copy[i].setPos(0, 80)
             self._centerObjectWithinParent(self.I0_copy_text[i])
 
+        self.i0_wb_buffer.setPos(spacing + offset + 5*(width+spacing), offset)
+
         # i1
         for i in range(5):
             self.I1_stages[i].setPos(offset+i*(width+spacing), offset+height+2*spacing)
@@ -1158,6 +1164,8 @@ class SweRVisual(QMainWindow):
             self._leftAlignObjectWithinParent(self.I1_info_text[i])
             self.I1_copy[i].setPos(0, 80)
             self._centerObjectWithinParent(self.I1_copy_text[i])
+
+        self.i1_wb_buffer.setPos(spacing + offset + 5*(width+spacing), offset+height+2*spacing)
 
         # LSU
         for i in range(5):
@@ -1313,14 +1321,23 @@ class SweRVisual(QMainWindow):
             if ((int(values["i0_wen_shifted"], 2) >> i) & 1):       self.ib_write_arrows_i0[i].show()
             if ((int(values["i1_wen_shifted"] + "0", 2) >> i) & 1): self.ib_write_arrows_i1[i].show()
 
+        self.i0_wb_buffer.setBrush(self.brush_stage_valid) if (int(values["i0_wb_buffer_val_q"])) else self.i0_wb_buffer.setBrush(self.brush_stage_invalid)
+        self.i0_wb_buffer.setPen(self.pen_line_rs1) if (int(values["i0_rs1_depend_i0_buf"]) or int(values["i1_rs1_depend_i0_buf"])) else self.i0_wb_buffer.setPen(QPen(Qt.black, 1))
+        self.i0_wb_buffer.setPen(self.pen_line_rs2) if (int(values["i0_rs2_depend_i0_buf"]) or int(values["i1_rs2_depend_i0_buf"])) else self.i0_wb_buffer.setPen(QPen(Qt.black, 1))
+
         # valid stages are green, invalid stages are red
         for i in range(5):
             self.I0_stages[i].setBrush(self.brush_stage_valid) if (int(values["e{}d.i0valid".format(i+1)])) else self.I0_stages[i].setBrush(self.brush_stage_invalid)
             self.I1_stages[i].setBrush(self.brush_stage_valid_i1) if (int(values["e{}d.i1valid".format(i+1)])) else self.I1_stages[i].setBrush(self.brush_stage_invalid)
             self.I0_copy[i].setBrush(self.brush_copy) if (int(values["i0_e{}_copy".format(i+1)]) and int(values["e{}d.i0valid".format(i+1)])) else self.I0_copy[i].setBrush(self.brush_neutral)
             self.I1_copy[i].setBrush(self.brush_copy) if (int(values["i1_e{}_copy".format(i+1)]) and int(values["e{}d.i1valid".format(i+1)])) else self.I1_copy[i].setBrush(self.brush_neutral)
-
+            
             self.LSU_stages[i].setBrush(self.brush_stage_valid) if (int(values["dc{}_valid".format(i+1)])) else self.LSU_stages[i].setBrush(self.brush_stage_invalid)
+        
+        self.i1_wb_buffer.setBrush(self.brush_stage_valid) if (int(values["i1_wb_buffer_val_q"])) else self.i1_wb_buffer.setBrush(self.brush_stage_invalid)
+        self.i1_wb_buffer.setPen(self.pen_line_rs1) if (int(values["i0_rs1_depend_i1_buf"]) or int(values["i1_rs1_depend_i1_buf"])) else self.i1_wb_buffer.setPen(QPen(Qt.black, 1))
+        self.i1_wb_buffer.setPen(self.pen_line_rs2) if (int(values["i0_rs2_depend_i1_buf"]) or int(values["i1_rs2_depend_i1_buf"])) else self.i1_wb_buffer.setPen(QPen(Qt.black, 1))
+
 
         for i in range(3):
             self.MUL_stages[i].setBrush(self.brush_stage_valid) if (int(values["valid_e{}".format(i+1)])) else self.MUL_stages[i].setBrush(self.brush_stage_invalid)
@@ -1783,6 +1800,19 @@ class VCDHandler():
             "e3_i1_rd"     : SWERV_DEC_DECODE + "e3d.i1rd[4:0]",
             "e4_i1_rd"     : SWERV_DEC_DECODE + "e4d.i1rd[4:0]",
             "e5_i1_rd"     : SWERV_DEC_DECODE + "wbd.i1rd[4:0]",
+
+            "i0_wb_buffer_val_q"   : SWERV_DEC_DECODE + "i0_wb_buffer_val_q",
+            "i1_wb_buffer_val_q"   : SWERV_DEC_DECODE + "i1_wb_buffer_val_q",
+
+            "i0_rs1_depend_i0_buf" : SWERV_DEC_DECODE + "i0_rs1_depend_i0_buf",
+            "i0_rs1_depend_i1_buf" : SWERV_DEC_DECODE + "i0_rs1_depend_i1_buf",
+            "i0_rs2_depend_i0_buf" : SWERV_DEC_DECODE + "i0_rs2_depend_i0_buf",
+            "i0_rs2_depend_i1_buf" : SWERV_DEC_DECODE + "i0_rs2_depend_i1_buf",
+            
+            "i1_rs1_depend_i0_buf" : SWERV_DEC_DECODE + "i1_rs1_depend_i0_buf",
+            "i1_rs1_depend_i1_buf" : SWERV_DEC_DECODE + "i1_rs1_depend_i1_buf",
+            "i1_rs2_depend_i0_buf" : SWERV_DEC_DECODE + "i1_rs2_depend_i0_buf",
+            "i1_rs2_depend_i1_buf" : SWERV_DEC_DECODE + "i1_rs2_depend_i1_buf",
             
             # EXU
 
