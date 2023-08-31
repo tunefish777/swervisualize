@@ -1,5 +1,5 @@
-# swervisualize
-Qt based visualization for the SweRV RISC-V core [WIP]
+# VEERisualize
+Qt based visualization for the VEER RISC-V core [WIP]
 
 Requires:
 - VCDVCD
