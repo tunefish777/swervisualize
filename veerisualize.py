@@ -31,7 +31,7 @@ import os
 import re
 
 # constants
-VEER_TOP        = "TOP.tb_top.rvtop.VEER."
+VEER_TOP        = "TOP.tb_top.rvtop.VeeR."
 VEER_DEC_DECODE = VEER_TOP + "dec.decode."
 VEER_DEC_IB     = VEER_TOP + "dec.instbuff."
 VEER_GPR        = VEER_TOP + "dec.arf.gpr_banks[0]."
@@ -40,7 +40,7 @@ VEER_TLU        = VEER_TOP + "dec.tlu."
 VEER_LSU_CTL    = VEER_TOP + "lsu.lsu_lsc_ctl."
 
 # ===[ GUI Class ]=========================================
-class VEERisual(QMainWindow):
+class VeeRisual(QMainWindow):
     def __init__(self):
         super().__init__()
         self.width   = 120
@@ -1476,7 +1476,7 @@ class VEERisual(QMainWindow):
         self.cyclelabel.setText("Current cycle: {:5d}".format(cycle))
 
 # ===[ Controller Class ]==================================
-class VEERisualCtrl():
+class VeeRisualCtrl():
     def __init__(self, view, vcdhandler, disas_handler):
         self._view = view
         self._vcdhandler = vcdhandler
@@ -1937,8 +1937,8 @@ if __name__ == '__main__':
    
     vcdhandler = VCDHandler(sys.argv[1])
     assembly = DisassemblyHandler(sys.argv[2])
-    VEERisual = QApplication(sys.argv)
-    view = VEERisual()
+    VeeRisual = QApplication(sys.argv)
+    view = VeeRisual()
     view.show()
-    ctrl = VEERisualCtrl(view=view, vcdhandler=vcdhandler, disas_handler=assembly)
-    sys.exit(VEERisual.exec_())
+    ctrl = VeeRisualCtrl(view=view, vcdhandler=vcdhandler, disas_handler=assembly)
+    sys.exit(VeeRisual.exec_())
